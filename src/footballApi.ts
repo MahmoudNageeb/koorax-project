@@ -125,3 +125,13 @@ export async function getTopScorers(env: FootballApiEnv, competitionId: number) 
     throw error;
   }
 }
+
+export async function getMatchById(env: FootballApiEnv, matchId: number) {
+  try {
+    const endpoint = `/matches/${matchId}`;
+    return await fetchFromAPI(endpoint, env.FOOTBALL_API_TOKEN);
+  } catch (error) {
+    console.error('Error fetching match details:', error);
+    throw error;
+  }
+}
