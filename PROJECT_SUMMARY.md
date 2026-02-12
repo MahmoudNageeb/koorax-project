@@ -1,6 +1,6 @@
-# ⚽ موقع مباريات كرة القدم - تقرير المشروع النهائي
+# ⚽ Koorax - موقع مباريات كرة القدم (النسخة 3)
 
-## ✅ حالة المشروع: **مكتمل 100% وجاهز للنشر**
+## ✅ حالة المشروع: **مكتمل 100% - النسخة 3 المحسّنة**
 
 ---
 
@@ -8,7 +8,31 @@
 
 تم إنشاء موقع ويب رياضي احترافي كامل لعرض مباريات كرة القدم والبطولات العالمية باستخدام بيانات حقيقية من **football-data.org API**.
 
-### 🌟 المميزات المنجزة
+### 🆕 المميزات الجديدة (النسخة 3)
+
+✅ **نظام الأذكار الدينية العشوائية**
+- عرض ذكر ديني عند أول تحميل للصفحة
+- 10 أذكار مختلفة بالعربية والإنجليزية
+- حفظ آخر ذكر في `localStorage` (مفتاح: `lastZikr`)
+- يتم عرضه مرة واحدة فقط في الجلسة
+- تصميم مودال زجاجي بنفس أسلوب الموقع
+- أنيميشن fade + scale (0.3s cubic-bezier)
+
+✅ **نظام اللغة الثنائي (عربي/إنجليزي)**
+- زر تبديل اللغة في الـ navbar
+- حفظ اللغة في `localStorage` (مفتاح: `selectedLanguage`)
+- تحديث تلقائي لجميع النصوص القابلة للترجمة
+- تبديل تلقائي لاتجاه الصفحة (RTL/LTR)
+- تحديث عنوان الصفحة dynamically
+
+✅ **وضع الثيم (Dark/Light Mode)**
+- زر تبديل الثيم في الـ navbar
+- حفظ الوضع في `localStorage` (مفتاح: `themeMode`)
+- تطبيق ديناميكي للألوان والخلفيات
+- تحديث تلقائي لجميع عناصر glass-card
+- انتقالات ناعمة مع cubic-bezier(0.4, 0, 0.2, 1)
+
+### 🌟 المميزات الأساسية
 
 ✅ **صفحة المباريات** (`/matches`)
 - مباريات مباشرة (LIVE) مع تحديث تلقائي كل 60 ثانية
@@ -53,15 +77,19 @@
 
 ### 🌐 الموقع المباشر (Sandbox)
 **Live Demo:** https://3000-i8f8s5h0v1yti847hjyjr-b9b802c4.sandbox.novita.ai
+**اسم الموقع:** Koorax ⚽
 
 ### 📄 صفحات الموقع
 - **الصفحة الرئيسية:** `/`
 - **المباريات:** `/matches`
+- **تفاصيل مباراة:** `/matches/:id` (مثال: `/matches/538042`)
 - **البطولات:** `/competitions`
 - **تفاصيل بطولة:** `/competitions/:id` (مثال: `/competitions/2021`)
 
-### 💾 النسخة الاحتياطية
-**Download Backup:** https://www.genspark.ai/api/files/s/4yW8bL9K
+### 💾 النسخ الاحتياطية
+- **النسخة 1:** https://www.genspark.ai/api/files/s/4yW8bL9K
+- **النسخة 2:** https://www.genspark.ai/api/files/s/KkkY9ECn
+- **النسخة 3:** (سيتم إنشاؤها قريباً)
 
 ---
 
@@ -75,6 +103,9 @@
 
 ### Frontend
 - **Vanilla JavaScript** - بدون frameworks ثقيلة
+- **KooraxApp Class** - نظام إدارة الحالة والترجمة 🆕
+- **localStorage API** - للحفظ التلقائي 🆕
+- **sessionStorage API** - لإدارة الجلسة 🆕
 - **Tailwind CSS** (CDN) - تصميم سريع
 - **Font Awesome** (CDN) - أيقونات
 - **Axios** (CDN) - HTTP client
@@ -93,6 +124,7 @@
 ```
 GET /                                   - الصفحة الرئيسية
 GET /matches                            - صفحة المباريات
+GET /matches/:id                        - صفحة تفاصيل مباراة 🆕
 GET /competitions                       - صفحة البطولات
 GET /competitions/:id                   - تفاصيل بطولة
 
@@ -101,6 +133,7 @@ GET /api/matches                        - جلب المباريات
 GET /api/matches/live                   - المباريات المباشرة
 GET /api/matches/upcoming               - المباريات القادمة
 GET /api/matches/finished               - المباريات المنتهية
+GET /api/matches/:id                    - تفاصيل مباراة معينة 🆕
 GET /api/competitions/:id/standings     - جدول الترتيب
 GET /api/competitions/:id/scorers       - جدول الهدافين
 ```
@@ -120,12 +153,20 @@ webapp/
 │   ├── index.tsx           # تطبيق Hono الرئيسي (38KB)
 │   ├── footballApi.ts      # طبقة API (3.5KB)
 │   ├── config.ts           # إعدادات البطولات
+│   ├── shared.ts           # مكونات مشتركة 🆕
+│   ├── utils.ts            # دوال مساعدة 🆕
 │   └── renderer.tsx        # Renderer افتراضي
+├── public/
+│   └── static/
+│       ├── app-enhanced.js # نظام Koorax المحسّن 🆕
+│       ├── zikr-system.js  # نظام الأذكار القديم
+│       └── style.css       # تنسيقات CSS
 ├── .dev.vars               # متغيرات البيئة المحلية
 ├── wrangler.jsonc          # إعدادات Cloudflare
 ├── ecosystem.config.cjs    # إعدادات PM2
 ├── package.json            # الحزم والسكربتات
 ├── README.md              # دليل المشروع
+├── PROJECT_SUMMARY.md     # هذا الملف
 ├── DEPLOYMENT_GUIDE.md    # دليل النشر
 └── .gitignore             # Git ignore
 ```
@@ -134,16 +175,28 @@ webapp/
 
 ## 🎨 مميزات التصميم
 
-### Dark UI Theme
+### 🆕 Dark/Light Mode System
+- تبديل ديناميكي بين الوضعين
+- حفظ تلقائي في localStorage
+- تطبيق الألوان والخلفيات بشكل ديناميكي
+- انتقالات ناعمة مع cubic-bezier
+
+### Dark UI Theme (Default)
 - خلفية Gradient متدرجة
 - Glass effect مع backdrop blur
 - Borders شفافة
+
+### Light UI Theme 🆕
+- خلفية فاتحة مع gradients خفيفة
+- Glass cards محسّنة للوضع الفاتح
+- نصوص داكنة للقراءة الأفضل
 
 ### Animations
 - Fade in animations للعناصر
 - Hover effects ناعمة
 - Pulse animation للمباريات المباشرة
 - Skeleton loaders أثناء التحميل
+- Zikr modal fade + scale (0.3s) 🆕
 
 ### Responsive Design
 - Desktop: 1920px+
@@ -174,6 +227,46 @@ webapp/
 - معالجة شاملة للأخطاء
 - Fallback UI عند الفشل
 - Retry logic للطلبات
+
+✅ **Privacy & Data Protection** 🆕
+- جميع البيانات المخزنة محلياً في المتصفح
+- لا يتم إرسال بيانات المستخدم لأي خادم
+- localStorage آمن ومشفر من قبل المتصفح
+- لا توجد Cookies أو Tracking
+
+---
+
+## 📝 الملفات الرئيسية في النسخة 3
+
+### JavaScript Files
+1. **`/static/app-enhanced.js` (11.6 KB)** 🆕
+   - KooraxApp class
+   - نظام الأذكار العشوائية
+   - نظام اللغة الثنائي
+   - نظام الثيم (Dark/Light)
+   - إدارة localStorage
+   - إدارة sessionStorage
+   - Event handlers للأزرار
+
+### TypeScript Files
+2. **`src/index.tsx` (38 KB)**
+   - Backend Hono routes
+   - HTML rendering
+   - data-i18n attributes 🆕
+   - Updated site name to "Koorax" 🆕
+
+### Configuration Files
+3. **`src/config.ts`**
+   - Competition IDs
+   - API base URL
+   - Competition name mappings
+
+### Style Files
+4. **`public/static/style.css`**
+   - Cairo font import
+   - Glass-card styles
+   - Gradient text effects
+   - Animation keyframes
 
 ---
 
