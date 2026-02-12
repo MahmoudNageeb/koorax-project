@@ -1,8 +1,36 @@
-# ⚽ موقع مباريات كرة القدم
+# ⚽ Koorax - موقع مباريات كرة القدم
 
 موقع ويب احترافي لمتابعة المباريات المباشرة والبطولات العالمية باستخدام بيانات حقيقية من football-data.org API.
 
 ## 🌟 الميزات
+
+### 🆕 أحدث المميزات (النسخة 3)
+
+#### ✨ النظام المحسّن
+- **🕌 نظام الأذكار العشوائية** - عرض ذكر ديني عند أول تحميل للصفحة
+  - 10 أذكار مختلفة بالعربية والإنجليزية
+  - يتم اختيار ذكر مختلف في كل مرة
+  - حفظ آخر ذكر تم عرضه في `localStorage`
+  - تصميم مودال زجاجي احترافي بنفس أسلوب الموقع
+  - أنيميشن fade + scale (0.3s)
+
+- **🌍 نظام اللغة الثنائي** - دعم كامل للعربية والإنجليزية
+  - زر تبديل اللغة في الـ navbar
+  - حفظ اللغة المختارة في `localStorage`
+  - تحديث تلقائي لجميع النصوص
+  - تبديل تلقائي لاتجاه الصفحة (RTL/LTR)
+
+- **🌓 وضع الثيم** - Dark Mode و Light Mode
+  - زر تبديل الثيم في الـ navbar
+  - حفظ الوضع المختار في `localStorage`
+  - تطبيق تلقائي للألوان والخلفيات
+  - تحديث ديناميكي لجميع بطاقات الـ glass-card
+  - انتقالات ناعمة بين الأوضاع
+
+- **💾 التخزين المحلي**
+  - `lastZikr` - آخر ذكر تم عرضه
+  - `selectedLanguage` - اللغة المختارة (ar/en)
+  - `themeMode` - وضع الثيم (dark/light)
 
 ### ✅ المميزات المكتملة
 
@@ -58,14 +86,12 @@
 
 ### 🌐 الموقع المباشر
 - **Live Demo**: https://3000-i8f8s5h0v1yti847hjyjr-b9b802c4.sandbox.novita.ai
+- **اسم الموقع**: Koorax ⚽
 
 ### 📄 الصفحات
 - **الصفحة الرئيسية**: `/`
 - **المباريات**: `/matches`
-- **تفاصيل مباراة**: `/matches/:id` **🆕**
-- **البطولات**: `/competitions`
-- **تفاصيل البطولة**: `/competitions/:id`
-- **المباريات**: `/matches`
+- **تفاصيل مباراة**: `/matches/:id`
 - **البطولات**: `/competitions`
 - **تفاصيل البطولة**: `/competitions/:id`
 
@@ -79,6 +105,7 @@ GET /api/matches                   - جلب جميع المباريات
 GET /api/matches/live              - المباريات المباشرة
 GET /api/matches/upcoming          - المباريات القادمة
 GET /api/matches/finished          - المباريات المنتهية
+GET /api/matches/:id               - تفاصيل مباراة معينة 🆕
 GET /api/competitions/:id/standings - جدول الترتيب
 GET /api/competitions/:id/scorers   - جدول الهدافين
 ```
@@ -102,6 +129,7 @@ GET /api/competitions/:id/scorers   - جدول الهدافين
 - **Font Awesome** - للأيقونات
 - **Axios** - للتواصل مع الـ API
 - **Cairo Font** - خط عربي احترافي
+- **KooraxApp Class** - نظام إدارة الحالة والترجمة 🆕
 
 ### Build & Deploy
 - **Vite** - بناء سريع
@@ -115,7 +143,14 @@ webapp/
 ├── src/
 │   ├── index.tsx           # تطبيق Hono الرئيسي
 │   ├── footballApi.ts      # طبقة API للتواصل مع football-data.org
-│   └── config.ts           # إعدادات البطولات المسموحة
+│   ├── config.ts           # إعدادات البطولات المسموحة
+│   ├── shared.ts           # مكونات مشتركة 🆕
+│   └── utils.ts            # دوال مساعدة 🆕
+├── public/
+│   └── static/
+│       ├── app-enhanced.js # نظام الأذكار واللغة والثيم 🆕
+│       ├── zikr-system.js  # نظام الأذكار القديم
+│       └── style.css       # تنسيقات CSS
 ├── .dev.vars               # متغيرات البيئة المحلية
 ├── wrangler.jsonc          # إعدادات Cloudflare
 ├── ecosystem.config.cjs    # إعدادات PM2
@@ -196,11 +231,40 @@ wrangler pages secret put FOOTBALL_API_TOKEN --project-name webapp
 
 ## 🎯 الحالة الحالية
 
-- ✅ **مكتمل 100%** - جاهز للنشر
-- ✅ جميع الصفحات تعمل
-- ✅ API مربوط
-- ✅ تصميم احترافي
-- ✅ بيانات حقيقية
+- ✅ **النسخة 3 - مكتملة 100%**
+- ✅ نظام الأذكار العشوائية
+- ✅ دعم ثنائي اللغة (عربي/إنجليزي)
+- ✅ وضع Dark/Light Mode
+- ✅ localStorage للحفظ التلقائي
+- ✅ تصميم متوافق 100% مع النمط الحالي
+- ✅ بدون أي مكتبات خارجية إضافية
+- ✅ Responsive كامل
+- ✅ جاهز للنشر الفوري
+
+## 📝 ملاحظات النسخة 3
+
+### التطويرات الجديدة
+1. **نظام الأذكار**
+   - يعرض مرة واحدة فقط عند أول تحميل للصفحة
+   - استخدام `sessionStorage` لمنع التكرار
+   - حفظ آخر ذكر في `localStorage` لضمان التنوع
+
+2. **نظام اللغة**
+   - Translations object شامل لجميع النصوص
+   - تبديل تلقائي لاتجاه الصفحة
+   - تحديث ديناميكي للعنوان والنصوص
+
+3. **نظام الثيم**
+   - تطبيق ديناميكي للألوان
+   - تحديث تلقائي لجميع عناصر الـ glass-card
+   - انتقالات ناعمة مع cubic-bezier
+
+### الكود النظيف
+- Class-based architecture (KooraxApp)
+- Separation of concerns
+- Comprehensive comments
+- Extensible structure
+- No code duplication
 
 ## 📞 الدعم
 
@@ -208,4 +272,5 @@ wrangler pages secret put FOOTBALL_API_TOKEN --project-name webapp
 
 ---
 
-**تم البناء بـ ❤️ باستخدام Hono + Cloudflare Workers**
+**تم البناء بـ ❤️ باستخدام Hono + Cloudflare Workers**  
+**Koorax V3 - Enhanced with Religious Greetings, Multilingual Support & Theme Modes**
