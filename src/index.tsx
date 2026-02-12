@@ -349,7 +349,7 @@ app.get('/', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>⚽ مباريات كرة القدم - المباريات المباشرة والبطولات</title>
+        <title>⚽ Koorax - مباريات كرة القدم</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <style>${sharedStyles}</style>
@@ -361,17 +361,17 @@ app.get('/', (c) => {
                     <div class="flex items-center gap-4">
                         <a href="/" class="flex items-center gap-3 group">
                             <i class="fas fa-futbol text-4xl gradient-text group-hover:rotate-[360deg] transition-transform duration-700"></i>
-                            <h1 class="text-3xl font-black gradient-text">مباريات كرة القدم</h1>
+                            <h1 class="text-3xl font-black gradient-text" data-i18n="siteTitle">Koorax</h1>
                         </a>
                     </div>
                     <div class="flex gap-3">
                         <a href="/matches" class="nav-link glass-card flex items-center gap-2">
                             <i class="fas fa-calendar-alt"></i>
-                            <span>المباريات</span>
+                            <span data-i18n="matches">المباريات</span>
                         </a>
                         <a href="/competitions" class="nav-link glass-card flex items-center gap-2">
                             <i class="fas fa-trophy"></i>
-                            <span>البطولات</span>
+                            <span data-i18n="competitions">البطولات</span>
                         </a>
                     </div>
                 </div>
@@ -387,18 +387,21 @@ app.get('/', (c) => {
                 <div class="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mt-16">
                     <a href="/matches" class="glass-card match-card p-10 rounded-3xl group">
                         <i class="fas fa-calendar-alt text-7xl text-blue-400 mb-6 group-hover:scale-110 transition-transform duration-300"></i>
-                        <h3 class="text-3xl font-bold mb-4">المباريات</h3>
+                        <h3 class="text-3xl font-bold mb-4" data-i18n="matches">المباريات</h3>
                         <p class="text-gray-300 text-lg">شاهد المباريات المباشرة والقادمة والمنتهية من جميع الدوريات</p>
                     </a>
                     
                     <a href="/competitions" class="glass-card match-card p-10 rounded-3xl group">
                         <i class="fas fa-trophy text-7xl text-yellow-400 mb-6 group-hover:scale-110 transition-transform duration-300"></i>
-                        <h3 class="text-3xl font-bold mb-4">البطولات</h3>
+                        <h3 class="text-3xl font-bold mb-4" data-i18n="competitions">البطولات</h3>
                         <p class="text-gray-300 text-lg">تصفح البطولات والجداول والهدافين</p>
                     </a>
                 </div>
             </div>
         </div>
+        
+        <!-- سكريبت النظام المحسّن -->
+        <script src="/static/app-enhanced.js"></script>
     </body>
     </html>
   `);
@@ -424,7 +427,7 @@ app.get('/matches', (c) => {
                     <div class="flex items-center gap-4">
                         <a href="/" class="flex items-center gap-3 group">
                             <i class="fas fa-futbol text-4xl gradient-text group-hover:rotate-[360deg] transition-transform duration-700"></i>
-                            <h1 class="text-3xl font-black gradient-text">مباريات كرة القدم</h1>
+                            <h1 class="text-3xl font-black gradient-text" data-i18n="siteTitle">Koorax</h1>
                         </a>
                     </div>
                     <div class="flex gap-3">
@@ -671,17 +674,17 @@ app.get('/matches/:id', (c) => {
                     <div class="flex items-center gap-4">
                         <a href="/" class="flex items-center gap-3 group">
                             <i class="fas fa-futbol text-4xl gradient-text group-hover:rotate-[360deg] transition-transform duration-700"></i>
-                            <h1 class="text-3xl font-black gradient-text">مباريات كرة القدم</h1>
+                            <h1 class="text-3xl font-black gradient-text" data-i18n="siteTitle">Koorax</h1>
                         </a>
                     </div>
                     <div class="flex gap-3">
                         <a href="/matches" class="nav-link glass-card flex items-center gap-2">
                             <i class="fas fa-calendar-alt"></i>
-                            <span>المباريات</span>
+                            <span data-i18n="matches">المباريات</span>
                         </a>
                         <a href="/competitions" class="nav-link glass-card flex items-center gap-2">
                             <i class="fas fa-trophy"></i>
-                            <span>البطولات</span>
+                            <span data-i18n="competitions">البطولات</span>
                         </a>
                     </div>
                 </div>
@@ -890,7 +893,7 @@ app.get('/competitions', (c) => {
                     <div class="flex items-center gap-4">
                         <a href="/" class="flex items-center gap-3 group">
                             <i class="fas fa-futbol text-4xl gradient-text group-hover:rotate-[360deg] transition-transform duration-700"></i>
-                            <h1 class="text-3xl font-black gradient-text">مباريات كرة القدم</h1>
+                            <h1 class="text-3xl font-black gradient-text" data-i18n="siteTitle">Koorax</h1>
                         </a>
                     </div>
                     <div class="flex gap-3">
@@ -1014,7 +1017,7 @@ app.get('/competitions/:id', (c) => {
                     <div class="flex items-center gap-4">
                         <a href="/" class="flex items-center gap-3 group">
                             <i class="fas fa-futbol text-4xl gradient-text group-hover:rotate-[360deg] transition-transform duration-700"></i>
-                            <h1 class="text-3xl font-black gradient-text">مباريات كرة القدم</h1>
+                            <h1 class="text-3xl font-black gradient-text" data-i18n="siteTitle">Koorax</h1>
                         </a>
                     </div>
                     <div class="flex gap-3">
