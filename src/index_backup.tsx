@@ -339,171 +339,6 @@ const sharedStyles = `
     border-color: rgba(59, 130, 246, 0.5);
     transform: translateY(-2px);
   }
-  
-  /* ========== RESPONSIVE FIXES ========== */
-  
-  /* Prevent horizontal overflow */
-  html, body {
-    overflow-x: hidden;
-    max-width: 100vw;
-  }
-  
-  /* Container responsive */
-  .container {
-    width: 100%;
-    max-width: 100%;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  
-  @media (min-width: 640px) {
-    .container { max-width: 640px; }
-  }
-  
-  @media (min-width: 768px) {
-    .container { max-width: 768px; }
-  }
-  
-  @media (min-width: 1024px) {
-    .container { max-width: 1024px; }
-  }
-  
-  @media (min-width: 1280px) {
-    .container { max-width: 1280px; }
-  }
-  
-  /* Mobile optimizations */
-  @media (max-width: 768px) {
-    .glass-card {
-      padding: 1rem;
-    }
-    
-    .glass-card:hover {
-      transform: translateY(-2px) scale(1.01);
-    }
-    
-    .nav-link {
-      padding: 8px 12px;
-      font-size: 0.875rem;
-    }
-    
-    .status-badge {
-      padding: 4px 10px;
-      font-size: 0.65rem;
-    }
-    
-    .competition-badge {
-      padding: 3px 8px;
-      font-size: 0.65rem;
-      gap: 4px;
-    }
-    
-    .team-logo {
-      width: 48px;
-      height: 48px;
-    }
-    
-    .score-display {
-      font-size: 1.75rem;
-    }
-    
-    .competition-filter {
-      padding: 6px 12px;
-      font-size: 0.75rem;
-    }
-    
-    /* Hide long text on mobile */
-    .line-clamp-1 {
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 1;
-      -webkit-box-orient: vertical;
-    }
-    
-    .line-clamp-2 {
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-    }
-  }
-  
-  /* Tablet optimizations */
-  @media (min-width: 769px) and (max-width: 1024px) {
-    .team-logo {
-      width: 56px;
-      height: 56px;
-    }
-    
-    .score-display {
-      font-size: 2rem;
-    }
-  }
-  
-  /* Table responsive */
-  @media (max-width: 768px) {
-    table {
-      font-size: 0.75rem;
-    }
-    
-    th, td {
-      padding: 0.5rem 0.25rem;
-    }
-    
-    .hide-mobile {
-      display: none;
-    }
-  }
-  
-  /* Utility classes */
-  .hover-lift {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  .hover-lift:hover {
-    transform: translateY(-4px);
-  }
-  
-  /* Light mode support (data-theme attribute) */
-  body[data-theme="light"] {
-    background: #f8fafc;
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, rgba(249, 115, 22, 0.08) 0px, transparent 50%);
-    color: #0f172a;
-  }
-  
-  body[data-theme="light"] .glass-card {
-    background: rgba(255, 255, 255, 0.7);
-    border-color: rgba(0, 0, 0, 0.08);
-    box-shadow: 
-      0 8px 32px 0 rgba(0, 0, 0, 0.1),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
-  }
-  
-  body[data-theme="light"] .glass-card:hover {
-    background: rgba(255, 255, 255, 0.9);
-    border-color: rgba(0, 0, 0, 0.15);
-  }
-  
-  body[data-theme="light"] .status-finished {
-    background: rgba(148, 163, 184, 0.3);
-    border: 1px solid rgba(100, 116, 139, 0.4);
-    color: #475569;
-  }
-  
-  body[data-theme="light"] .skeleton {
-    background: linear-gradient(
-      90deg,
-      rgba(0,0,0,0.03) 0%,
-      rgba(0,0,0,0.08) 50%,
-      rgba(0,0,0,0.03) 100%
-    );
-  }
 `;
 
 // Frontend Routes
@@ -565,8 +400,8 @@ app.get('/', (c) => {
             </div>
         </div>
         
-        <!-- Koorax Global System v4 -->
-        <script src="/static/koorax-global.js"></script>
+        <!-- سكريبت النظام المحسّن -->
+        <script src="/static/app-enhanced.js"></script>
     </body>
     </html>
   `);
@@ -812,9 +647,6 @@ app.get('/matches', (c) => {
           loadMatches();
           setInterval(loadMatches, 60000);
         </script>
-        
-        <!-- Koorax Global System v4 -->
-        <script src="/static/koorax-global.js"></script>
     </body>
     </html>
   `);
@@ -1036,9 +868,6 @@ app.get('/matches/:id', (c) => {
 
           loadMatchDetails();
         </script>
-        
-        <!-- Koorax Global System v4 -->
-        <script src="/static/koorax-global.js"></script>
     </body>
     </html>
   `);
@@ -1135,9 +964,6 @@ app.get('/competitions', (c) => {
 
           loadCompetitions();
         </script>
-        
-        <!-- Koorax Global System v4 -->
-        <script src="/static/koorax-global.js"></script>
     </body>
     </html>
   `);
@@ -1381,9 +1207,6 @@ app.get('/competitions/:id', (c) => {
           loadStandings();
           loadScorers();
         </script>
-        
-        <!-- Koorax Global System v4 -->
-        <script src="/static/koorax-global.js"></script>
     </body>
     </html>
   `);
