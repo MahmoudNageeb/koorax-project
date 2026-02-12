@@ -4,35 +4,37 @@
 
 ## 🌟 الميزات
 
-### 🆕 أحدث المميزات (النسخة 3)
+### 🆕 أحدث المميزات (النسخة 4)
 
-#### ✨ النظام المحسّن
-- **🕌 نظام الأذكار العشوائية** - عرض ذكر ديني عند أول تحميل للصفحة
-  - 10 أذكار مختلفة بالعربية والإنجليزية
-  - يتم اختيار ذكر مختلف في كل مرة
-  - حفظ آخر ذكر تم عرضه في `localStorage`
-  - تصميم مودال زجاجي احترافي بنفس أسلوب الموقع
-  - أنيميشن fade + scale (0.3s)
+#### ✨ نظام عالمي محسّن (Global System Overhaul)
 
-- **🌍 نظام اللغة الثنائي** - دعم كامل للعربية والإنجليزية
-  - زر تبديل اللغة في الـ navbar
-  - حفظ اللغة المختارة في `localStorage`
-  - تحديث تلقائي لجميع النصوص
-  - تبديل تلقائي لاتجاه الصفحة (RTL/LTR)
+**🌍 نظام الترجمة العالمي**
+- تغيير اللغة يعمل على **جميع الصفحات** فوراً
+- دعم كامل للعربية والإنجليزية
+- **100+ مفتاح ترجمة** لتغطية شاملة
+- حفظ اللغة في localStorage
+- تبديل تلقائي RTL/LTR
+- بدون إعادة تحميل الصفحة
+- Event-driven architecture
 
-- **🌓 وضع الثيم** - Dark Mode و Light Mode
-  - زر تبديل الثيم في الـ navbar
-  - حفظ الوضع المختار في `localStorage`
-  - تطبيق تلقائي للألوان والخلفيات
-  - تحديث ديناميكي لجميع بطاقات الـ glass-card
-  - انتقالات ناعمة بين الأوضاع
+**🌓 نظام الثيم العالمي**
+- Dark Mode و Light Mode يعملان على **كامل الموقع**
+- تطبيق فوري على جميع المكونات
+- حفظ الوضع في localStorage
+- CSS Variables للألوان
+- انتقالات ناعمة cubic-bezier
+- دعم data-theme attribute
 
-- **💾 التخزين المحلي**
-  - `lastZikr` - آخر ذكر تم عرضه
-  - `selectedLanguage` - اللغة المختارة (ar/en)
-  - `themeMode` - وضع الثيم (dark/light)
+**📱 نظام Responsive محسّن**
+- منع Overflow الأفقي تماماً
+- تحسينات شاملة للموبايل
+- Breakpoints: 640px, 768px, 1024px, 1280px
+- Tables responsive
+- Text clamping للنصوص الطويلة
+- Touch-friendly buttons
+- Mobile-first approach
 
-### ✅ المميزات المكتملة
+### ✅ المميزات الأساسية
 
 - **صفحة المباريات** (`/matches`)
   - ✅ مباريات مباشرة (تحديث تلقائي كل 60 ثانية)
@@ -125,11 +127,12 @@ GET /api/competitions/:id/scorers   - جدول الهدافين
 
 ### Frontend
 - **Vanilla JavaScript** - بدون frameworks ثقيلة
+- **Koorax Global System V4** - نظام عالمي للترجمة والثيم 🆕
+- **Event-Driven Architecture** - للتحديثات الفورية 🆕
 - **Tailwind CSS** - للتصميم السريع
 - **Font Awesome** - للأيقونات
 - **Axios** - للتواصل مع الـ API
 - **Cairo Font** - خط عربي احترافي
-- **KooraxApp Class** - نظام إدارة الحالة والترجمة 🆕
 
 ### Build & Deploy
 - **Vite** - بناء سريع
@@ -231,40 +234,58 @@ wrangler pages secret put FOOTBALL_API_TOKEN --project-name webapp
 
 ## 🎯 الحالة الحالية
 
-- ✅ **النسخة 3 - مكتملة 100%**
-- ✅ نظام الأذكار العشوائية
-- ✅ دعم ثنائي اللغة (عربي/إنجليزي)
-- ✅ وضع Dark/Light Mode
+- ✅ **النسخة 4 - مكتملة 100%**
+- ✅ نظام ترجمة عالمي يعمل على كامل الموقع
+- ✅ نظام Dark/Light Mode عالمي
+- ✅ نظام Responsive محسّن للغاية
 - ✅ localStorage للحفظ التلقائي
+- ✅ Event-driven architecture
 - ✅ تصميم متوافق 100% مع النمط الحالي
 - ✅ بدون أي مكتبات خارجية إضافية
-- ✅ Responsive كامل
+- ✅ Responsive كامل (Mobile, Tablet, Desktop)
 - ✅ جاهز للنشر الفوري
 
-## 📝 ملاحظات النسخة 3
+## 📝 ملاحظات النسخة 4
 
 ### التطويرات الجديدة
-1. **نظام الأذكار**
-   - يعرض مرة واحدة فقط عند أول تحميل للصفحة
-   - استخدام `sessionStorage` لمنع التكرار
-   - حفظ آخر ذكر في `localStorage` لضمان التنوع
+1. **نظام عالمي مركزي**
+   - Global state management بدون مكتبات
+   - window.KooraxGlobal كنقطة مركزية
+   - window.t() للترجمة
+   - window.setLanguage() & window.setTheme()
+   - Subscribe/unsubscribe pattern
 
-2. **نظام اللغة**
-   - Translations object شامل لجميع النصوص
-   - تبديل تلقائي لاتجاه الصفحة
-   - تحديث ديناميكي للعنوان والنصوص
+2. **Translations شاملة**
+   - 100+ مفتاح ترجمة
+   - تغطية كاملة لجميع النصوص
+   - بدون hardcoded strings
+   - دعم RTL/LTR تلقائي
 
-3. **نظام الثيم**
-   - تطبيق ديناميكي للألوان
-   - تحديث تلقائي لجميع عناصر الـ glass-card
-   - انتقالات ناعمة مع cubic-bezier
+3. **Responsive محسّن**
+   - منع overflow أفقي تماماً
+   - Breakpoints محسّنة
+   - Mobile-first approach
+   - Touch-friendly
+   - Text clamping
+
+4. **Theme System**
+   - Light & Dark modes كاملة
+   - CSS Variables
+   - data-theme attribute
+   - Smooth transitions
 
 ### الكود النظيف
-- Class-based architecture (KooraxApp)
+- Event-driven architecture
 - Separation of concerns
-- Comprehensive comments
-- Extensible structure
+- Components structure
 - No code duplication
+- Comprehensive comments
+- Extensible design
+
+### الملفات الجديدة
+- `public/static/koorax-global.js` - النظام العالمي
+- `src/components.ts` - المكونات المشتركة
+- `V4_DOCUMENTATION.md` - توثيق شامل
 
 ## 📞 الدعم
 
@@ -273,4 +294,4 @@ wrangler pages secret put FOOTBALL_API_TOKEN --project-name webapp
 ---
 
 **تم البناء بـ ❤️ باستخدام Hono + Cloudflare Workers**  
-**Koorax V3 - Enhanced with Religious Greetings, Multilingual Support & Theme Modes**
+**Koorax V4 - Global System Overhaul 🚀**
