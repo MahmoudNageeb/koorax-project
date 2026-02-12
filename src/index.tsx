@@ -123,12 +123,12 @@ const sharedStyles = `
   }
   
   body {
-    background: #0a0e27;
+    background: #0d1117;
     background-image: 
-      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%),
-      radial-gradient(at 0% 100%, rgba(239, 68, 68, 0.1) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(34, 197, 94, 0.12) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.1) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
     min-height: 100vh;
     color: #fff;
   }
@@ -504,6 +504,339 @@ const sharedStyles = `
       rgba(0,0,0,0.03) 100%
     );
   }
+  
+  /* ========== SPORT THEME ENHANCEMENTS ========== */
+  
+  /* Hero Banner */
+  .hero-banner {
+    position: relative;
+    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #047857 100%);
+    padding: 4rem 2rem;
+    border-radius: 24px;
+    overflow: hidden;
+    margin-bottom: 3rem;
+  }
+  
+  .hero-banner::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/><path d="M30,50 Q50,30 70,50 T110,50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="0.3"/></svg>');
+    opacity: 0.3;
+    animation: float 20s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+  
+  /* Enhanced Match Cards */
+  .match-card-new {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .match-card-new::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, #10b981, #059669);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  
+  .match-card-new:hover {
+    border-color: rgba(16, 185, 129, 0.4);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(16, 185, 129, 0.15);
+  }
+  
+  .match-card-new:hover::after {
+    opacity: 1;
+  }
+  
+  /* Sport Badge */
+  .sport-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .sport-badge.live {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  
+  .sport-badge.soon {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+  }
+  
+  .sport-badge.finished {
+    background: rgba(100, 116, 139, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+  }
+  
+  /* Enhanced Navigation */
+  .nav-enhanced {
+    background: rgba(13, 17, 23, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  }
+  
+  .nav-link-enhanced {
+    padding: 12px 20px;
+    border-radius: 10px;
+    transition: all 0.3s;
+    position: relative;
+  }
+  
+  .nav-link-enhanced:hover,
+  .nav-link-enhanced.active {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+  }
+  
+  .nav-link-enhanced.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 20%;
+    right: 20%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #10b981, transparent);
+  }
+  
+  /* Hamburger Menu */
+  .hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+    padding: 8px;
+  }
+  
+  .hamburger span {
+    width: 24px;
+    height: 2px;
+    background: #10b981;
+    transition: all 0.3s;
+    border-radius: 2px;
+  }
+  
+  .hamburger.active span:nth-child(1) {
+    transform: rotate(45deg) translateY(9px);
+  }
+  
+  .hamburger.active span:nth-child(2) {
+    opacity: 0;
+  }
+  
+  .hamburger.active span:nth-child(3) {
+    transform: rotate(-45deg) translateY(-9px);
+  }
+  
+  @media (max-width: 768px) {
+    .hamburger {
+      display: flex;
+    }
+    
+    .nav-menu {
+      position: fixed;
+      top: 70px;
+      right: -100%;
+      width: 80%;
+      max-width: 300px;
+      height: calc(100vh - 70px);
+      background: rgba(13, 17, 23, 0.98);
+      backdrop-filter: blur(20px);
+      border-left: 1px solid rgba(16, 185, 129, 0.2);
+      padding: 2rem;
+      transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 999;
+      overflow-y: auto;
+    }
+    
+    .nav-menu.active {
+      right: 0;
+    }
+    
+    .nav-link-enhanced {
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+  }
+  
+  /* Search Box */
+  .search-box {
+    position: relative;
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .search-box input {
+    width: 100%;
+    padding: 10px 40px 10px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    background: rgba(15, 23, 42, 0.5);
+    color: #fff;
+    font-size: 0.875rem;
+    transition: all 0.3s;
+  }
+  
+  .search-box input:focus {
+    outline: none;
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  }
+  
+  .search-box input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+  
+  .search-box i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #10b981;
+  }
+  
+  /* Zikr Toast */
+  .zikr-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    max-width: 400px;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    transform: translateX(500px);
+    opacity: 0;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 9999;
+  }
+  
+  .zikr-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  
+  .zikr-toast .close-btn {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.2);
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .zikr-toast .close-btn:hover {
+    background: rgba(239, 68, 68, 0.3);
+    transform: scale(1.1);
+  }
+  
+  .zikr-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981, #059669);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  
+  .zikr-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.6;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+  
+  @media (max-width: 768px) {
+    .zikr-toast {
+      top: 10px;
+      right: 10px;
+      left: 10px;
+      max-width: none;
+    }
+  }
+  
+  /* Competition Cards */
+  .competition-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+  }
+  
+  .competition-card:hover {
+    border-color: rgba(16, 185, 129, 0.4);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 15px 50px rgba(16, 185, 129, 0.2);
+  }
+  
+  .competition-card img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    margin: 0 auto 1rem;
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3));
+  }
+  
+  /* Enhanced Headings */
+  h1, h2, h3 {
+    font-weight: 800;
+  }
+  
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+  }
+  
+  h2 {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+  }
+  
+  h3 {
+    font-size: clamp(1.2rem, 3vw, 1.8rem);
+  }
 `;
 
 // Frontend Routes
@@ -565,8 +898,11 @@ app.get('/', (c) => {
             </div>
         </div>
         
-        <!-- Koorax Global System v4 -->
+        <!-- Koorax Global System v5 - Enhanced -->
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
         <script src="/static/koorax-global.js"></script>
+        <script src="/static/zikr-toast.js"></script>
+        <script src="/static/nav-component.js"></script>
     </body>
     </html>
   `);
@@ -583,9 +919,25 @@ app.get('/matches', (c) => {
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
         <style>${sharedStyles}</style>
     </head>
     <body>
+        <script>
+        // Navigation Component Integration
+        document.addEventListener('DOMContentLoaded', function() {
+          if (typeof window.createEnhancedNav === 'function') {
+            const navPlaceholder = document.querySelector('nav');
+            if (navPlaceholder) {
+              navPlaceholder.outerHTML = window.createEnhancedNav('matches');
+              // Re-initialize after replacement
+              if (typeof initializeNav === 'function') {
+                setTimeout(initializeNav, 100);
+              }
+            }
+          }
+        });
+        </script>
         <nav class="glass-card sticky top-0 z-50 mb-8">
             <div class="container mx-auto px-4 py-5">
                 <div class="flex items-center justify-between">
@@ -813,8 +1165,11 @@ app.get('/matches', (c) => {
           setInterval(loadMatches, 60000);
         </script>
         
-        <!-- Koorax Global System v4 -->
+        <!-- Koorax Global System v5 - Enhanced -->
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
         <script src="/static/koorax-global.js"></script>
+        <script src="/static/zikr-toast.js"></script>
+        <script src="/static/nav-component.js"></script>
     </body>
     </html>
   `);
@@ -1037,8 +1392,11 @@ app.get('/matches/:id', (c) => {
           loadMatchDetails();
         </script>
         
-        <!-- Koorax Global System v4 -->
+        <!-- Koorax Global System v5 - Enhanced -->
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
         <script src="/static/koorax-global.js"></script>
+        <script src="/static/zikr-toast.js"></script>
+        <script src="/static/nav-component.js"></script>
     </body>
     </html>
   `);
@@ -1136,8 +1494,11 @@ app.get('/competitions', (c) => {
           loadCompetitions();
         </script>
         
-        <!-- Koorax Global System v4 -->
+        <!-- Koorax Global System v5 - Enhanced -->
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
         <script src="/static/koorax-global.js"></script>
+        <script src="/static/zikr-toast.js"></script>
+        <script src="/static/nav-component.js"></script>
     </body>
     </html>
   `);
@@ -1382,8 +1743,11 @@ app.get('/competitions/:id', (c) => {
           loadScorers();
         </script>
         
-        <!-- Koorax Global System v4 -->
+        <!-- Koorax Global System v5 - Enhanced -->
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
         <script src="/static/koorax-global.js"></script>
+        <script src="/static/zikr-toast.js"></script>
+        <script src="/static/nav-component.js"></script>
     </body>
     </html>
   `);

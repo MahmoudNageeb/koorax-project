@@ -20,7 +20,11 @@ const TRANSLATIONS = {
     home: 'الرئيسية',
     matches: 'المباريات',
     competitions: 'البطولات',
+    standings: 'الترتيب',
+    topScorers: 'الهدافون',
+    quickSearch: 'بحث سريع عن فريق',
     news: 'الأخبار',
+    searchPlaceholder: 'ابحث عن فريق...',
     
     // Match Status
     live: 'مباشر',
@@ -147,7 +151,11 @@ const TRANSLATIONS = {
     home: 'Home',
     matches: 'Matches',
     competitions: 'Competitions',
+    standings: 'Standings',
+    topScorers: 'Top Scorers',
+    quickSearch: 'Quick Team Search',
     news: 'News',
+    searchPlaceholder: 'Search for a team...',
     
     // Match Status
     live: 'Live',
