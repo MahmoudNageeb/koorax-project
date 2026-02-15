@@ -857,61 +857,396 @@ app.get('/', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>⚽ Koorax - مباريات كرة القدم</title>
+        <title>⚽ Koorax - مباريات اليوم</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
         <link rel="stylesheet" href="/static/shared-styles.css">
         <link rel="stylesheet" href="/static/enhanced-styles.css">
     </head>
     <body>
-        <nav class="glass-card sticky top-0 z-50 mb-8">
-            <div class="container mx-auto px-4 py-5">
+        <!-- Navigation -->
+        <nav class="glass-card sticky top-0 z-50 mb-6">
+            <div class="container mx-auto px-4 py-4">
                 <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-4">
-                        <a href="/" class="flex items-center gap-3 group">
-                            <i class="fas fa-futbol text-4xl gradient-text group-hover:rotate-[360deg] transition-transform duration-700"></i>
-                            <h1 class="text-3xl font-black gradient-text" data-i18n="siteTitle">Koorax</h1>
+                    <a href="/" class="flex items-center gap-3 group">
+                        <i class="fas fa-futbol text-3xl gradient-text group-hover:rotate-[360deg] transition-transform duration-700"></i>
+                        <h1 class="text-2xl font-black gradient-text">Koorax</h1>
+                    </a>
+                    <div class="flex gap-2">
+                        <a href="/" class="nav-link glass-card flex items-center gap-2 bg-blue-600">
+                            <i class="fas fa-home"></i>
+                            <span class="hidden md:inline">الرئيسية</span>
                         </a>
-                    </div>
-                    <div class="flex gap-3">
-                        <a href="/matches" class="nav-link glass-card flex items-center gap-2">
-                            <i class="fas fa-calendar-alt"></i>
-                            <span data-i18n="matches">المباريات</span>
+                        <a href="/standings" class="nav-link glass-card flex items-center gap-2">
+                            <i class="fas fa-list-ol"></i>
+                            <span class="hidden md:inline">الترتيب</span>
+                        </a>
+                        <a href="/scorers" class="nav-link glass-card flex items-center gap-2">
+                            <i class="fas fa-futbol"></i>
+                            <span class="hidden md:inline">الهدافون</span>
                         </a>
                         <a href="/competitions" class="nav-link glass-card flex items-center gap-2">
                             <i class="fas fa-trophy"></i>
-                            <span data-i18n="competitions">البطولات</span>
+                            <span class="hidden md:inline">البطولات</span>
                         </a>
                     </div>
                 </div>
             </div>
         </nav>
 
-        <div class="container mx-auto px-4 py-12">
-            <div class="text-center animate-fade-in">
-                <i class="fas fa-futbol text-9xl gradient-text mb-8 inline-block animate-pulse"></i>
-                <h2 class="text-6xl font-black mb-6 gradient-text">مرحباً بك في عالم كرة القدم</h2>
-                <p class="text-2xl text-gray-300 mb-12 max-w-3xl mx-auto">تابع المباريات المباشرة، الدوريات الكبرى، ودوري أبطال أوروبا</p>
-                
-                <div class="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mt-16">
-                    <a href="/matches" class="glass-card match-card p-10 rounded-3xl group">
-                        <i class="fas fa-calendar-alt text-7xl text-blue-400 mb-6 group-hover:scale-110 transition-transform duration-300"></i>
-                        <h3 class="text-3xl font-bold mb-4" data-i18n="matches">المباريات</h3>
-                        <p class="text-gray-300 text-lg">شاهد المباريات المباشرة والقادمة والمنتهية من جميع الدوريات</p>
-                    </a>
-                    
-                    <a href="/competitions" class="glass-card match-card p-10 rounded-3xl group">
-                        <i class="fas fa-trophy text-7xl text-yellow-400 mb-6 group-hover:scale-110 transition-transform duration-300"></i>
-                        <h3 class="text-3xl font-bold mb-4" data-i18n="competitions">البطولات</h3>
-                        <p class="text-gray-300 text-lg">تصفح البطولات والجداول والهدافين</p>
-                    </a>
+        <div class="container mx-auto px-4 py-4">
+            <!-- Live Matches Section -->
+            <div id="live-matches-section" class="mb-6" style="display: none;">
+                <div class="glass-card p-4 rounded-2xl mb-4">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        <h2 class="text-2xl font-bold text-red-400">مباريات مباشرة الآن</h2>
+                    </div>
+                    <div id="live-matches" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- Today's Matches by Competition -->
+            <div id="matches-container">
+                <div class="text-center py-12">
+                    <div class="skeleton h-32 mb-4"></div>
+                    <div class="skeleton h-32 mb-4"></div>
+                    <div class="skeleton h-32"></div>
                 </div>
             </div>
         </div>
+
+        <script>
+          const competitions = {
+            2021: { name: 'الدوري الإنجليزي', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', color: 'purple' },
+            2014: { name: 'الدوري الإسباني', icon: '🇪🇸', color: 'orange' },
+            2019: { name: 'الدوري الإيطالي', icon: '🇮🇹', color: 'blue' },
+            2002: { name: 'الدوري الألماني', icon: '🇩🇪', color: 'red' },
+            2015: { name: 'الدوري الفرنسي', icon: '🇫🇷', color: 'blue' },
+            2001: { name: 'دوري أبطال أوروبا', icon: '🏆', color: 'yellow' }
+          };
+
+          function getStatusBadge(status) {
+            if (status === 'IN_PLAY' || status === 'PAUSED') {
+              return '<span class="status-badge status-live">مباشر <i class="fas fa-circle text-xs ml-1 animate-pulse"></i></span>';
+            } else if (status === 'FINISHED') {
+              return '<span class="status-badge status-finished">انتهت</span>';
+            } else {
+              return '<span class="status-badge status-scheduled">لم تبدأ</span>';
+            }
+          }
+
+          function formatTime(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+          }
+
+          function createMatchCard(match) {
+            const comp = competitions[match.competition.id] || { name: match.competition.name, icon: '⚽', color: 'gray' };
+            
+            return \`
+              <a href="/matches/\${match.id}" class="block glass-card p-4 rounded-xl hover:bg-opacity-80 transition-all cursor-pointer">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="text-sm text-gray-400 flex items-center gap-2">
+                    <span class="text-lg">\${comp.icon}</span>
+                    <span>\${comp.name}</span>
+                  </div>
+                  \${getStatusBadge(match.status)}
+                </div>
+                
+                <div class="flex items-center justify-between">
+                  <!-- Home Team -->
+                  <div class="flex items-center gap-3 flex-1">
+                    <div class="w-10 h-10 flex-shrink-0">
+                      \${match.homeTeam.crest ? \`<img src="\${match.homeTeam.crest}" alt="\${match.homeTeam.name}" class="w-full h-full object-contain">\` : '<i class="fas fa-shield-alt text-gray-500 text-2xl"></i>'}
+                    </div>
+                    <span class="font-bold text-lg truncate">\${match.homeTeam.shortName || match.homeTeam.name}</span>
+                  </div>
+                  
+                  <!-- Score -->
+                  <div class="px-6 text-center">
+                    \${match.status === 'FINISHED' || match.status === 'IN_PLAY' || match.status === 'PAUSED' 
+                      ? \`<div class="text-3xl font-black gradient-text">\${match.score.fullTime.home || 0} - \${match.score.fullTime.away || 0}</div>\`
+                      : \`<div class="text-lg text-gray-400">\${formatTime(match.utcDate)}</div>\`
+                    }
+                  </div>
+                  
+                  <!-- Away Team -->
+                  <div class="flex items-center gap-3 flex-1 justify-end">
+                    <span class="font-bold text-lg truncate">\${match.awayTeam.shortName || match.awayTeam.name}</span>
+                    <div class="w-10 h-10 flex-shrink-0">
+                      \${match.awayTeam.crest ? \`<img src="\${match.awayTeam.crest}" alt="\${match.awayTeam.name}" class="w-full h-full object-contain">\` : '<i class="fas fa-shield-alt text-gray-500 text-2xl"></i>'}
+                    </div>
+                  </div>
+                </div>
+              </a>
+            \`;
+          }
+
+          async function loadTodayMatches() {
+            try {
+              const response = await axios.get('/api/matches');
+              const matches = response.data.matches;
+              
+              // Filter today's matches
+              const today = new Date().toDateString();
+              const todayMatches = matches.filter(match => {
+                const matchDate = new Date(match.utcDate).toDateString();
+                return matchDate === today;
+              });
+
+              // Separate live matches
+              const liveMatches = todayMatches.filter(m => m.status === 'IN_PLAY' || m.status === 'PAUSED');
+              const otherMatches = todayMatches.filter(m => m.status !== 'IN_PLAY' && m.status !== 'PAUSED');
+
+              // Display live matches
+              if (liveMatches.length > 0) {
+                document.getElementById('live-matches-section').style.display = 'block';
+                document.getElementById('live-matches').innerHTML = liveMatches.map(createMatchCard).join('');
+              }
+
+              // Group matches by competition
+              const matchesByComp = {};
+              otherMatches.forEach(match => {
+                const compId = match.competition.id;
+                if (!matchesByComp[compId]) {
+                  matchesByComp[compId] = [];
+                }
+                matchesByComp[compId].push(match);
+              });
+
+              // Display matches by competition
+              const container = document.getElementById('matches-container');
+              
+              if (Object.keys(matchesByComp).length === 0 && liveMatches.length === 0) {
+                container.innerHTML = \`
+                  <div class="glass-card p-12 rounded-2xl text-center">
+                    <i class="fas fa-calendar-times text-6xl text-gray-500 mb-4"></i>
+                    <h3 class="text-2xl font-bold mb-2">لا توجد مباريات اليوم</h3>
+                    <p class="text-gray-400">تحقق من صفحة المباريات لرؤية المباريات القادمة</p>
+                    <a href="/matches" class="inline-block mt-6 px-6 py-3 bg-blue-600 rounded-xl font-bold hover:bg-blue-700 transition">
+                      <i class="fas fa-calendar-alt ml-2"></i>
+                      جميع المباريات
+                    </a>
+                  </div>
+                \`;
+                return;
+              }
+
+              let html = '';
+              Object.keys(matchesByComp).sort().forEach(compId => {
+                const comp = competitions[compId] || { name: 'دوري آخر', icon: '⚽' };
+                const compMatches = matchesByComp[compId];
+                
+                html += \`
+                  <div class="glass-card p-4 rounded-2xl mb-4">
+                    <div class="flex items-center gap-3 mb-4">
+                      <span class="text-2xl">\${comp.icon}</span>
+                      <h2 class="text-xl font-bold">\${comp.name}</h2>
+                      <span class="text-sm text-gray-400">(\${compMatches.length})</span>
+                    </div>
+                    <div class="space-y-3">
+                      \${compMatches.map(createMatchCard).join('')}
+                    </div>
+                  </div>
+                \`;
+              });
+              
+              container.innerHTML = html;
+            } catch (error) {
+              console.error('Error loading matches:', error);
+              document.getElementById('matches-container').innerHTML = \`
+                <div class="glass-card p-8 rounded-2xl text-center text-red-400">
+                  <i class="fas fa-exclamation-triangle text-5xl mb-4"></i>
+                  <p>حدث خطأ في تحميل المباريات</p>
+                </div>
+              \`;
+            }
+          }
+
+          // Load matches on page load
+          loadTodayMatches();
+          
+          // Auto-refresh every 60 seconds
+          setInterval(loadTodayMatches, 60000);
+        </script>
         
         <!-- Enhanced Styles -->
         <link rel="stylesheet" href="/static/enhanced-styles.css">
         <!-- Simple Zikr Component -->
+        <script src="/static/simple-zikr.js"></script>
+    </body>
+    </html>
+  `);
+});
+
+// Standings Page
+app.get('/standings', (c) => {
+  return c.html(`
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>⚽ الترتيب - Koorax</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+        <link rel="stylesheet" href="/static/shared-styles.css">
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
+    </head>
+    <body>
+        <nav class="glass-card sticky top-0 z-50 mb-6">
+            <div class="container mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <a href="/" class="flex items-center gap-3">
+                        <i class="fas fa-futbol text-3xl gradient-text"></i>
+                        <h1 class="text-2xl font-black gradient-text">Koorax</h1>
+                    </a>
+                    <div class="flex gap-2">
+                        <a href="/" class="nav-link glass-card flex items-center gap-2">
+                            <i class="fas fa-home"></i>
+                            <span class="hidden md:inline">الرئيسية</span>
+                        </a>
+                        <a href="/standings" class="nav-link glass-card flex items-center gap-2 bg-blue-600">
+                            <i class="fas fa-list-ol"></i>
+                            <span class="hidden md:inline">الترتيب</span>
+                        </a>
+                        <a href="/scorers" class="nav-link glass-card flex items-center gap-2">
+                            <i class="fas fa-futbol"></i>
+                            <span class="hidden md:inline">الهدافون</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container mx-auto px-4 py-4">
+            <div id="standings-container">
+                <div class="text-center py-12">
+                    <div class="skeleton h-96 mb-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+          const competitions = [
+            { id: 2021, name: 'الدوري الإنجليزي', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+            { id: 2014, name: 'الدوري الإسباني', icon: '🇪🇸' },
+            { id: 2019, name: 'الدوري الإيطالي', icon: '🇮🇹' },
+            { id: 2002, name: 'الدوري الألماني', icon: '🇩🇪' },
+            { id: 2015, name: 'الدوري الفرنسي', icon: '🇫🇷' },
+            { id: 2001, name: 'دوري أبطال أوروبا', icon: '🏆' }
+          ];
+
+          async function loadAllStandings() {
+            const container = document.getElementById('standings-container');
+            let html = '';
+
+            for (const comp of competitions) {
+              html += \`<div class="glass-card p-6 rounded-2xl mb-6"><div class="flex items-center gap-3 mb-6"><span class="text-3xl">\${comp.icon}</span><h2 class="text-2xl font-bold">\${comp.name}</h2></div><div id="standings-\${comp.id}" class="overflow-x-auto"><div class="skeleton h-64"></div></div></div>\`;
+            }
+            container.innerHTML = html;
+
+            for (const comp of competitions) {
+              try {
+                const response = await axios.get(\`/api/competitions/\${comp.id}/standings\`);
+                const standings = response.data.standings;
+                
+                if (standings && standings.length > 0 && standings[0].table) {
+                  const table = standings[0].table;
+                  document.getElementById(\`standings-\${comp.id}\`).innerHTML = \`<table class="w-full"><thead><tr class="border-b border-gray-700 text-sm text-gray-400"><th class="text-center py-3 px-2 w-12">#</th><th class="text-right py-3 px-4">الفريق</th><th class="text-center py-3 px-2 hidden md:table-cell">لعب</th><th class="text-center py-3 px-2 hidden sm:table-cell">فاز</th><th class="text-center py-3 px-2 hidden sm:table-cell">تعادل</th><th class="text-center py-3 px-2 hidden sm:table-cell">خسر</th><th class="text-center py-3 px-2 font-bold">النقاط</th></tr></thead><tbody>\${table.map((team, idx) => \`<tr class="border-b border-gray-800 hover:bg-gray-800/50 transition"><td class="text-center py-4 px-2"><span class="font-bold text-lg \${idx < 4 ? 'text-green-400' : idx < 6 ? 'text-blue-400' : idx >= table.length - 3 ? 'text-red-400' : 'text-gray-400'}">\${team.position}</span></td><td class="py-4 px-4"><div class="flex items-center gap-3"><img src="\${team.team.crest}" class="w-8 h-8 object-contain"><span class="font-semibold truncate">\${team.team.shortName || team.team.name}</span></div></td><td class="text-center py-4 px-2 text-gray-400 hidden md:table-cell">\${team.playedGames}</td><td class="text-center py-4 px-2 text-green-400 hidden sm:table-cell">\${team.won}</td><td class="text-center py-4 px-2 text-yellow-400 hidden sm:table-cell">\${team.draw}</td><td class="text-center py-4 px-2 text-red-400 hidden sm:table-cell">\${team.lost}</td><td class="text-center py-4 px-2 font-black text-xl text-blue-400">\${team.points}</td></tr>\`).join('')}</tbody></table>\`;
+                }
+              } catch (error) {
+                document.getElementById(\`standings-\${comp.id}\`).innerHTML = '<p class="text-center text-gray-400 py-8">لا توجد بيانات</p>';
+              }
+            }
+          }
+          loadAllStandings();
+        </script>
+        <script src="/static/simple-zikr.js"></script>
+    </body>
+    </html>
+  `);
+});
+
+// Scorers Page
+app.get('/scorers', (c) => {
+  return c.html(`
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>⚽ الهدافون - Koorax</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+        <link rel="stylesheet" href="/static/shared-styles.css">
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
+    </head>
+    <body>
+        <nav class="glass-card sticky top-0 z-50 mb-6">
+            <div class="container mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <a href="/" class="flex items-center gap-3">
+                        <i class="fas fa-futbol text-3xl gradient-text"></i>
+                        <h1 class="text-2xl font-black gradient-text">Koorax</h1>
+                    </a>
+                    <div class="flex gap-2">
+                        <a href="/" class="nav-link glass-card flex items-center gap-2">
+                            <i class="fas fa-home"></i>
+                            <span class="hidden md:inline">الرئيسية</span>
+                        </a>
+                        <a href="/standings" class="nav-link glass-card flex items-center gap-2">
+                            <i class="fas fa-list-ol"></i>
+                            <span class="hidden md:inline">الترتيب</span>
+                        </a>
+                        <a href="/scorers" class="nav-link glass-card flex items-center gap-2 bg-blue-600">
+                            <i class="fas fa-futbol"></i>
+                            <span class="hidden md:inline">الهدافون</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container mx-auto px-4 py-4">
+            <div id="scorers-container">
+                <div class="text-center py-12"><div class="skeleton h-96"></div></div>
+            </div>
+        </div>
+
+        <script>
+          const competitions = [
+            { id: 2021, name: 'الدوري الإنجليزي', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+            { id: 2014, name: 'الدوري الإسباني', icon: '🇪🇸' },
+            { id: 2019, name: 'الدوري الإيطالي', icon: '🇮🇹' },
+            { id: 2002, name: 'الدوري الألماني', icon: '🇩🇪' },
+            { id: 2015, name: 'الدوري الفرنسي', icon: '🇫🇷' }
+          ];
+
+          async function loadAllScorers() {
+            const container = document.getElementById('scorers-container');
+            let html = '';
+            for (const comp of competitions) {
+              html += \`<div class="glass-card p-6 rounded-2xl mb-6"><div class="flex items-center gap-3 mb-6"><span class="text-3xl">\${comp.icon}</span><h2 class="text-2xl font-bold">\${comp.name}</h2></div><div id="scorers-\${comp.id}"><div class="skeleton h-64"></div></div></div>\`;
+            }
+            container.innerHTML = html;
+
+            for (const comp of competitions) {
+              try {
+                const response = await axios.get(\`/api/competitions/\${comp.id}/scorers\`);
+                const scorers = response.data.scorers.slice(0, 10);
+                document.getElementById(\`scorers-\${comp.id}\`).innerHTML = \`<div class="space-y-3">\${scorers.map((scorer, idx) => \`<div class="flex items-center justify-between p-4 rounded-xl bg-gray-800/30 hover:bg-gray-800/50 transition"><div class="flex items-center gap-4 flex-1"><div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center font-black text-xl">\${idx + 1}</div><div class="flex items-center gap-3 flex-1"><img src="\${scorer.team.crest}" class="w-8 h-8 object-contain"><div><div class="font-bold">\${scorer.player.name}</div><div class="text-sm text-gray-400">\${scorer.team.shortName || scorer.team.name}</div></div></div></div><div class="flex items-center gap-2 font-black text-2xl text-blue-400"><i class="fas fa-futbol text-lg"></i><span>\${scorer.goals}</span></div></div>\`).join('')}</div>\`;
+              } catch (error) {
+                document.getElementById(\`scorers-\${comp.id}\`).innerHTML = '<p class="text-center text-gray-400 py-8">لا توجد بيانات</p>';
+              }
+            }
+          }
+          loadAllScorers();
+        </script>
         <script src="/static/simple-zikr.js"></script>
     </body>
     </html>
