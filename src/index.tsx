@@ -7,6 +7,7 @@ import {
   getMatchesByDateRange,
   getStandings, 
   getTopScorers,
+  getTopAssists,
   getMatchById,
   FootballApiEnv 
 } from './footballApi';
@@ -108,6 +109,16 @@ app.get('/api/competitions/:id/scorers', async (c) => {
     return c.json(data);
   } catch (error) {
     return c.json({ error: 'Failed to fetch top scorers' }, 500);
+  }
+});
+
+app.get('/api/competitions/:id/assists', async (c) => {
+  try {
+    const competitionId = parseInt(c.req.param('id'));
+    const data = await getTopAssists({ FOOTBALL_API_TOKEN: c.env.FOOTBALL_API_TOKEN }, competitionId);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch top assists' }, 500);
   }
 });
 
@@ -1162,8 +1173,8 @@ app.get('/matches', (c) => {
           }
 
           loadMatches();
-          // Auto-refresh every 1 second for real-time updates
-          setInterval(loadMatches, 1000);
+          // Auto-refresh every 1 minute for optimal performance
+          setInterval(loadMatches, 60000);
         </script>
         
         <!-- Koorax Global System v5 - Enhanced -->
@@ -1445,10 +1456,10 @@ app.get('/matches/:id', (c) => {
           // Initial load
           loadMatchDetails();
           
-          // Auto-refresh every 1 second for live matches
+          // Auto-refresh every 1 minute for optimal performance
           setInterval(() => {
             loadMatchDetails();
-          }, 1000);
+          }, 60000);
         </script>
         
         <style>
@@ -1676,7 +1687,7 @@ app.get('/competitions/:id', (c) => {
             </div>
 
             <div class="glass-card rounded-2xl p-8 mb-8 animate-fade-in">
-                <div class="flex gap-6 border-b border-gray-700">
+                <div class="flex gap-6 border-b border-gray-700 overflow-x-auto">
                     <button class="tab-button active" onclick="switchTab('standings', this)">
                         <i class="fas fa-list-ol ml-2"></i>
                         الترتيب
@@ -1684,6 +1695,10 @@ app.get('/competitions/:id', (c) => {
                     <button class="tab-button" onclick="switchTab('scorers', this)">
                         <i class="fas fa-futbol ml-2"></i>
                         الهدافون
+                    </button>
+                    <button class="tab-button" onclick="switchTab('assists', this)">
+                        <i class="fas fa-hands-helping ml-2"></i>
+                        صناع الأهداف
                     </button>
                 </div>
 
@@ -1696,6 +1711,14 @@ app.get('/competitions/:id', (c) => {
                 </div>
 
                 <div id="scorers-tab" class="tab-content mt-8 hidden">
+                    <div class="space-y-2">
+                        <div class="skeleton h-16"></div>
+                        <div class="skeleton h-16"></div>
+                        <div class="skeleton h-16"></div>
+                    </div>
+                </div>
+                
+                <div id="assists-tab" class="tab-content mt-8 hidden">
                     <div class="space-y-2">
                         <div class="skeleton h-16"></div>
                         <div class="skeleton h-16"></div>
@@ -1837,8 +1860,77 @@ app.get('/competitions/:id', (c) => {
             }
           }
 
+          async function loadAssists() {
+            try {
+              const response = await axios.get(\`/api/competitions/\${competitionId}/scorers\`);
+              const scorers = response.data.scorers;
+              const container = document.getElementById('assists-tab');
+              
+              if (!scorers || scorers.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-400 py-12 glass-card rounded-2xl"><i class="fas fa-info-circle text-4xl mb-3"></i><p class="text-lg">لا توجد بيانات صناع الأهداف متاحة</p></div>';
+                return;
+              }
+
+              // Filter players with assists and sort by assists
+              const assistProviders = scorers
+                .filter(scorer => scorer.assists && scorer.assists > 0)
+                .sort((a, b) => b.assists - a.assists);
+
+              if (assistProviders.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-400 py-12 glass-card rounded-2xl"><i class="fas fa-info-circle text-4xl mb-3"></i><p class="text-lg">لا توجد بيانات صناع الأهداف متاحة</p></div>';
+                return;
+              }
+
+              container.innerHTML = \`
+                <div class="overflow-x-auto">
+                  <table class="w-full">
+                    <thead>
+                      <tr class="border-b border-gray-700 text-sm">
+                        <th class="text-center py-4 px-3">#</th>
+                        <th class="text-right py-4 px-6">اللاعب</th>
+                        <th class="text-right py-4 px-6">الفريق</th>
+                        <th class="text-center py-4 px-3 font-bold">التمريرات الحاسمة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      \${assistProviders.slice(0, 20).map((scorer, index) => \`
+                        <tr class="table-row border-b border-gray-800">
+                          <td class="text-center py-5 px-3 font-black text-xl text-green-400">\${index + 1}</td>
+                          <td class="py-5 px-6">
+                            <div>
+                              <div class="font-bold text-lg">\${scorer.player.name}</div>
+                              <div class="text-sm text-gray-400">\${scorer.player.nationality || ''}</div>
+                            </div>
+                          </td>
+                          <td class="py-5 px-6">
+                            <div class="flex items-center gap-3">
+                              <div class="w-8 h-8 flex-shrink-0">
+                                \${scorer.team.crest ? \`<img src="\${scorer.team.crest}" alt="\${scorer.team.name}" class="w-full h-full object-contain">\` : '<i class="fas fa-shield-alt text-gray-500 text-sm"></i>'}
+                              </div>
+                              <span class="font-semibold">\${scorer.team.name}</span>
+                            </div>
+                          </td>
+                          <td class="text-center py-5 px-3 font-black text-2xl">
+                            <span class="inline-flex items-center gap-2 text-green-400">
+                              <i class="fas fa-hands-helping text-lg"></i>
+                              \${scorer.assists}
+                            </span>
+                          </td>
+                        </tr>
+                      \`).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              \`;
+            } catch (error) {
+              console.error('Error loading assists:', error);
+              document.getElementById('assists-tab').innerHTML = '<div class="text-center text-red-400 py-12 glass-card rounded-2xl">حدث خطأ في تحميل صناع الأهداف</div>';
+            }
+          }
+
           loadStandings();
           loadScorers();
+          loadAssists();
         </script>
         
         <!-- Koorax Global System v5 - Enhanced -->

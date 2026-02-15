@@ -6,7 +6,7 @@ export interface FootballApiEnv {
 
 // Cache for API responses
 const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 1000; // 1 second for real-time updates
+const CACHE_DURATION = 60000; // 1 minute for optimal performance
 
 function getCachedData(key: string) {
   const cached = cache.get(key);
@@ -132,6 +132,29 @@ export async function getTopScorers(env: FootballApiEnv, competitionId: number) 
     return await fetchFromAPI(endpoint, env.FOOTBALL_API_TOKEN);
   } catch (error) {
     console.error('Error fetching top scorers:', error);
+    throw error;
+  }
+}
+
+export async function getTopAssists(env: FootballApiEnv, competitionId: number) {
+  try {
+    // Note: The free Football Data API doesn't have a dedicated assists endpoint
+    // We get scorers data which includes assists information
+    const endpoint = `/competitions/${competitionId}/scorers`;
+    const data = await fetchFromAPI(endpoint, env.FOOTBALL_API_TOKEN);
+    
+    // Filter and sort by assists
+    if (data.scorers) {
+      const assisters = data.scorers
+        .filter((player: any) => player.assists && player.assists > 0)
+        .sort((a: any, b: any) => (b.assists || 0) - (a.assists || 0));
+      
+      return { scorers: assisters };
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching top assists:', error);
     throw error;
   }
 }

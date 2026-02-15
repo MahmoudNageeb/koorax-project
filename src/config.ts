@@ -17,7 +17,15 @@ export const ALLOWED_COMPETITION_IDS = [
   2019, // Serie A
   2002, // Bundesliga
   2015, // Ligue 1
-  2001  // UEFA Champions League
+  2001, // UEFA Champions League
+  2017, // Primeira Liga
+  2003, // Eredivisie
+  2013  // Brasileirão
+  // ملاحظة: الدوري المصري، السعودي، والكويتي غير متوفرين في Football Data API
+  // للحصول على هذه الدوريات، يجب استخدام API آخر مثل:
+  // - API-Football (RapidAPI)
+  // - TheSportsDB
+  // - SportMonks
 ];
 
 export const API_BASE_URL = 'https://api.football-data.org/v4';
