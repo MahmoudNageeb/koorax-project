@@ -7,7 +7,6 @@ import {
   getMatchesByDateRange,
   getStandings, 
   getTopScorers,
-  getTopAssists,
   getMatchById,
   FootballApiEnv 
 } from './footballApi';
@@ -861,7 +860,8 @@ app.get('/', (c) => {
         <title>⚽ Koorax - مباريات كرة القدم</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
-        <style>${sharedStyles}</style>
+        <link rel="stylesheet" href="/static/shared-styles.css">
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
     </head>
     <body>
         <nav class="glass-card sticky top-0 z-50 mb-8">
@@ -909,11 +909,10 @@ app.get('/', (c) => {
             </div>
         </div>
         
-        <!-- Koorax Global System v5 - Enhanced -->
+        <!-- Enhanced Styles -->
         <link rel="stylesheet" href="/static/enhanced-styles.css">
-        <script src="/static/koorax-global.js"></script>
-        <script src="/static/zikr-toast.js"></script>
-        <script src="/static/nav-component.js"></script>
+        <!-- Simple Zikr Component -->
+        <script src="/static/simple-zikr.js"></script>
     </body>
     </html>
   `);
@@ -931,7 +930,8 @@ app.get('/matches', (c) => {
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
         <link rel="stylesheet" href="/static/enhanced-styles.css">
-        <style>${sharedStyles}</style>
+        <link rel="stylesheet" href="/static/shared-styles.css">
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
     </head>
     <body>
         <script>
@@ -1177,11 +1177,10 @@ app.get('/matches', (c) => {
           setInterval(loadMatches, 60000);
         </script>
         
-        <!-- Koorax Global System v5 - Enhanced -->
+        <!-- Enhanced Styles -->
         <link rel="stylesheet" href="/static/enhanced-styles.css">
-        <script src="/static/koorax-global.js"></script>
-        <script src="/static/zikr-toast.js"></script>
-        <script src="/static/nav-component.js"></script>
+        <!-- Simple Zikr Component -->
+        <script src="/static/simple-zikr.js"></script>
     </body>
     </html>
   `);
@@ -1200,7 +1199,8 @@ app.get('/matches/:id', (c) => {
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <style>${sharedStyles}</style>
+        <link rel="stylesheet" href="/static/shared-styles.css">
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
     </head>
     <body>
         <nav class="glass-card sticky top-0 z-50 mb-8">
@@ -1390,57 +1390,8 @@ app.get('/matches/:id', (c) => {
                 </div>
               \`;
               
-              // Add tabs for lineup, events, and stats
-              container.innerHTML += \`
-                <div class="glass-card p-6 rounded-2xl">
-                  <!-- Tabs -->
-                  <div class="flex gap-4 mb-6 border-b border-gray-700 overflow-x-auto">
-                    <button class="tab-btn active" data-tab="events">
-                      <i class="fas fa-clock"></i>
-                      <span>أحداث المباراة</span>
-                    </button>
-                    <button class="tab-btn" data-tab="lineup">
-                      <i class="fas fa-users"></i>
-                      <span>التشكيلة</span>
-                    </button>
-                    <button class="tab-btn" data-tab="stats">
-                      <i class="fas fa-chart-bar"></i>
-                      <span>الإحصائيات</span>
-                    </button>
-                  </div>
-                  
-                  <!-- Tab Content -->
-                  <div id="tab-content">
-                    <div id="events-tab" class="tab-content active">
-                      ${window.matchDetailsDisplay ? window.matchDetailsDisplay.displayEvents(match) : '<p class="text-gray-400 text-center py-8">جاري التحميل...</p>'}
-                    </div>
-                    <div id="lineup-tab" class="tab-content hidden">
-                      ${window.matchDetailsDisplay ? window.matchDetailsDisplay.displayLineup(match) : '<p class="text-gray-400 text-center py-8">جاري التحميل...</p>'}
-                    </div>
-                    <div id="stats-tab" class="tab-content hidden">
-                      ${window.matchDetailsDisplay ? window.matchDetailsDisplay.displayStatistics(match) : '<p class="text-gray-400 text-center py-8">جاري التحميل...</p>'}
-                    </div>
-                  </div>
-                </div>
-              \`;
-              
-              // Setup tab switching
-              const tabButtons = document.querySelectorAll('.tab-btn');
-              tabButtons.forEach(btn => {
-                btn.addEventListener('click', () => {
-                  const tabName = btn.dataset.tab;
-                  
-                  // Update active button
-                  tabButtons.forEach(b => b.classList.remove('active'));
-                  btn.classList.add('active');
-                  
-                  // Show/hide content
-                  document.querySelectorAll('.tab-content').forEach(content => {
-                    content.classList.add('hidden');
-                  });
-                  document.getElementById(tabName + '-tab').classList.remove('hidden');
-                });
-              });
+              // Add basic match information
+              // Tabs removed due to Cloudflare Workers limitations
             } catch (error) {
               console.error('Error loading match details:', error);
               document.getElementById('match-details').innerHTML = \`
@@ -1498,14 +1449,10 @@ app.get('/matches/:id', (c) => {
           }
         </style>
         
-        <!-- Match Details Display Script -->
-        <script src="/static/match-details-display.js"></script>
-        
-        <!-- Koorax Global System v5 - Enhanced -->
+        <!-- Enhanced Styles -->
         <link rel="stylesheet" href="/static/enhanced-styles.css">
-        <script src="/static/koorax-global.js"></script>
-        <script src="/static/zikr-toast.js"></script>
-        <script src="/static/nav-component.js"></script>
+        <!-- Simple Zikr Component -->
+        <script src="/static/simple-zikr.js"></script>
     </body>
     </html>
   `);
@@ -1522,7 +1469,8 @@ app.get('/competitions', (c) => {
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <style>${sharedStyles}</style>
+        <link rel="stylesheet" href="/static/shared-styles.css">
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
     </head>
     <body>
         <nav class="glass-card sticky top-0 z-50 mb-8">
@@ -1603,11 +1551,10 @@ app.get('/competitions', (c) => {
           loadCompetitions();
         </script>
         
-        <!-- Koorax Global System v5 - Enhanced -->
+        <!-- Enhanced Styles -->
         <link rel="stylesheet" href="/static/enhanced-styles.css">
-        <script src="/static/koorax-global.js"></script>
-        <script src="/static/zikr-toast.js"></script>
-        <script src="/static/nav-component.js"></script>
+        <!-- Simple Zikr Component -->
+        <script src="/static/simple-zikr.js"></script>
     </body>
     </html>
   `);
@@ -1626,7 +1573,9 @@ app.get('/competitions/:id', (c) => {
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <style>${sharedStyles}
+        <link rel="stylesheet" href="/static/shared-styles.css">
+        <link rel="stylesheet" href="/static/enhanced-styles.css">
+        <style>
           .tab-button {
             padding: 16px 32px;
             border-bottom: 3px solid transparent;
@@ -1933,11 +1882,10 @@ app.get('/competitions/:id', (c) => {
           loadAssists();
         </script>
         
-        <!-- Koorax Global System v5 - Enhanced -->
+        <!-- Enhanced Styles -->
         <link rel="stylesheet" href="/static/enhanced-styles.css">
-        <script src="/static/koorax-global.js"></script>
-        <script src="/static/zikr-toast.js"></script>
-        <script src="/static/nav-component.js"></script>
+        <!-- Simple Zikr Component -->
+        <script src="/static/simple-zikr.js"></script>
     </body>
     </html>
   `);
