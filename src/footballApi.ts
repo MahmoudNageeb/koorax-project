@@ -6,7 +6,7 @@ export interface FootballApiEnv {
 
 // Cache for API responses
 const cache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_DURATION = 60000; // 1 minute
+const CACHE_DURATION = 1000; // 1 second for real-time updates
 
 function getCachedData(key: string) {
   const cached = cache.get(key);
@@ -63,6 +63,16 @@ export async function getMatches(env: FootballApiEnv, status?: string) {
     
     if (status) {
       params.append('status', status);
+      
+      // For FINISHED matches, get last 7 days
+      if (status === 'FINISHED') {
+        const today = new Date();
+        const weekAgo = new Date();
+        weekAgo.setDate(today.getDate() - 7);
+        
+        params.append('dateFrom', weekAgo.toISOString().split('T')[0]);
+        params.append('dateTo', today.toISOString().split('T')[0]);
+      }
     }
     
     const queryString = params.toString();

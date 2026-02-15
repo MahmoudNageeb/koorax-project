@@ -1162,7 +1162,8 @@ app.get('/matches', (c) => {
           }
 
           loadMatches();
-          setInterval(loadMatches, 60000);
+          // Auto-refresh every 1 second for real-time updates
+          setInterval(loadMatches, 1000);
         </script>
         
         <!-- Koorax Global System v5 - Enhanced -->
@@ -1377,6 +1378,58 @@ app.get('/matches/:id', (c) => {
                   </div>
                 </div>
               \`;
+              
+              // Add tabs for lineup, events, and stats
+              container.innerHTML += \`
+                <div class="glass-card p-6 rounded-2xl">
+                  <!-- Tabs -->
+                  <div class="flex gap-4 mb-6 border-b border-gray-700 overflow-x-auto">
+                    <button class="tab-btn active" data-tab="events">
+                      <i class="fas fa-clock"></i>
+                      <span>أحداث المباراة</span>
+                    </button>
+                    <button class="tab-btn" data-tab="lineup">
+                      <i class="fas fa-users"></i>
+                      <span>التشكيلة</span>
+                    </button>
+                    <button class="tab-btn" data-tab="stats">
+                      <i class="fas fa-chart-bar"></i>
+                      <span>الإحصائيات</span>
+                    </button>
+                  </div>
+                  
+                  <!-- Tab Content -->
+                  <div id="tab-content">
+                    <div id="events-tab" class="tab-content active">
+                      ${window.matchDetailsDisplay ? window.matchDetailsDisplay.displayEvents(match) : '<p class="text-gray-400 text-center py-8">جاري التحميل...</p>'}
+                    </div>
+                    <div id="lineup-tab" class="tab-content hidden">
+                      ${window.matchDetailsDisplay ? window.matchDetailsDisplay.displayLineup(match) : '<p class="text-gray-400 text-center py-8">جاري التحميل...</p>'}
+                    </div>
+                    <div id="stats-tab" class="tab-content hidden">
+                      ${window.matchDetailsDisplay ? window.matchDetailsDisplay.displayStatistics(match) : '<p class="text-gray-400 text-center py-8">جاري التحميل...</p>'}
+                    </div>
+                  </div>
+                </div>
+              \`;
+              
+              // Setup tab switching
+              const tabButtons = document.querySelectorAll('.tab-btn');
+              tabButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                  const tabName = btn.dataset.tab;
+                  
+                  // Update active button
+                  tabButtons.forEach(b => b.classList.remove('active'));
+                  btn.classList.add('active');
+                  
+                  // Show/hide content
+                  document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.add('hidden');
+                  });
+                  document.getElementById(tabName + '-tab').classList.remove('hidden');
+                });
+              });
             } catch (error) {
               console.error('Error loading match details:', error);
               document.getElementById('match-details').innerHTML = \`
@@ -1389,8 +1442,53 @@ app.get('/matches/:id', (c) => {
             }
           }
 
+          // Initial load
           loadMatchDetails();
+          
+          // Auto-refresh every 1 second for live matches
+          setInterval(() => {
+            loadMatchDetails();
+          }, 1000);
         </script>
+        
+        <style>
+          .tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-bottom: 3px solid transparent;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 600;
+            transition: all 0.3s;
+            cursor: pointer;
+            background: none;
+            border-radius: 0;
+            white-space: nowrap;
+          }
+          
+          .tab-btn:hover {
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(16, 185, 129, 0.1);
+          }
+          
+          .tab-btn.active {
+            color: #10b981;
+            border-bottom-color: #10b981;
+          }
+          
+          .tab-content {
+            animation: fadeIn 0.3s;
+          }
+          
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        </style>
+        
+        <!-- Match Details Display Script -->
+        <script src="/static/match-details-display.js"></script>
         
         <!-- Koorax Global System v5 - Enhanced -->
         <link rel="stylesheet" href="/static/enhanced-styles.css">
