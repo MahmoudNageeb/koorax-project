@@ -8,11 +8,12 @@ import {
   getStandings, 
   getTopScorers,
   getMatchById,
-  FootballApiEnv 
-} from './footballApi';
+  FootballApiEnv,
+  COMPETITIONS_INFO
+} from './sportmonksApi';
 
 type Bindings = {
-  FOOTBALL_API_TOKEN: string;
+  SPORTMONKS_API_TOKEN?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -919,12 +920,15 @@ app.get('/', (c) => {
 
         <script>
           const competitions = {
-            2021: { name: 'الدوري الإنجليزي', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', color: 'purple' },
-            2014: { name: 'الدوري الإسباني', icon: '🇪🇸', color: 'orange' },
-            2019: { name: 'الدوري الإيطالي', icon: '🇮🇹', color: 'blue' },
-            2002: { name: 'الدوري الألماني', icon: '🇩🇪', color: 'red' },
-            2015: { name: 'الدوري الفرنسي', icon: '🇫🇷', color: 'blue' },
-            2001: { name: 'دوري أبطال أوروبا', icon: '🏆', color: 'yellow' }
+            8: { name: 'الدوري الإنجليزي', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', color: 'purple' },
+            564: { name: 'الدوري الإسباني', icon: '🇪🇸', color: 'orange' },
+            384: { name: 'الدوري الإيطالي', icon: '🇮🇹', color: 'blue' },
+            82: { name: 'الدوري الألماني', icon: '🇩🇪', color: 'red' },
+            301: { name: 'الدوري الفرنسي', icon: '🇫🇷', color: 'blue' },
+            2: { name: 'دوري أبطال أوروبا', icon: '🏆', color: 'yellow' },
+            307: { name: 'الدوري المصري', icon: '🇪🇬', color: 'green' },
+            383: { name: 'دوري روشن السعودي', icon: '🇸🇦', color: 'green' },
+            427: { name: 'الدوري الكويتي', icon: '🇰🇼', color: 'blue' }
           };
 
           function getStatusBadge(status) {
@@ -1132,12 +1136,15 @@ app.get('/standings', (c) => {
 
         <script>
           const competitions = [
-            { id: 2021, name: 'الدوري الإنجليزي', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-            { id: 2014, name: 'الدوري الإسباني', icon: '🇪🇸' },
-            { id: 2019, name: 'الدوري الإيطالي', icon: '🇮🇹' },
-            { id: 2002, name: 'الدوري الألماني', icon: '🇩🇪' },
-            { id: 2015, name: 'الدوري الفرنسي', icon: '🇫🇷' },
-            { id: 2001, name: 'دوري أبطال أوروبا', icon: '🏆' }
+            { id: 8, name: 'الدوري الإنجليزي', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+            { id: 564, name: 'الدوري الإسباني', icon: '🇪🇸' },
+            { id: 384, name: 'الدوري الإيطالي', icon: '🇮🇹' },
+            { id: 82, name: 'الدوري الألماني', icon: '🇩🇪' },
+            { id: 301, name: 'الدوري الفرنسي', icon: '🇫🇷' },
+            { id: 2, name: 'دوري أبطال أوروبا', icon: '🏆' },
+            { id: 307, name: 'الدوري المصري', icon: '🇪🇬' },
+            { id: 383, name: 'دوري روشن السعودي', icon: '🇸🇦' },
+            { id: 427, name: 'الدوري الكويتي', icon: '🇰🇼' }
           ];
 
           async function loadAllStandings() {
