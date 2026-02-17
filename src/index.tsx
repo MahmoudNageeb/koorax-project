@@ -862,8 +862,7 @@ app.get('/', (c) => {
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <link rel="stylesheet" href="/static/shared-styles.css">
-        <link rel="stylesheet" href="/static/enhanced-styles.css">
+        <link rel="stylesheet" href="/static/koorax-pro.css">
     </head>
     <body>
         <!-- Navigation -->
@@ -1097,8 +1096,7 @@ app.get('/standings', (c) => {
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <link rel="stylesheet" href="/static/shared-styles.css">
-        <link rel="stylesheet" href="/static/enhanced-styles.css">
+        <link rel="stylesheet" href="/static/koorax-pro.css">
     </head>
     <body>
         <nav class="glass-card sticky top-0 z-50 mb-6">
@@ -1190,8 +1188,7 @@ app.get('/scorers', (c) => {
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <link rel="stylesheet" href="/static/shared-styles.css">
-        <link rel="stylesheet" href="/static/enhanced-styles.css">
+        <link rel="stylesheet" href="/static/koorax-pro.css">
     </head>
     <body>
         <nav class="glass-card sticky top-0 z-50 mb-6">
@@ -1272,8 +1269,7 @@ app.get('/matches', (c) => {
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
         <link rel="stylesheet" href="/static/enhanced-styles.css">
-        <link rel="stylesheet" href="/static/shared-styles.css">
-        <link rel="stylesheet" href="/static/enhanced-styles.css">
+        <link rel="stylesheet" href="/static/koorax-pro.css">
     </head>
     <body>
         <script>
@@ -1541,8 +1537,7 @@ app.get('/matches/:id', (c) => {
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <link rel="stylesheet" href="/static/shared-styles.css">
-        <link rel="stylesheet" href="/static/enhanced-styles.css">
+        <link rel="stylesheet" href="/static/koorax-pro.css">
     </head>
     <body>
         <nav class="glass-card sticky top-0 z-50 mb-8">
@@ -1811,8 +1806,7 @@ app.get('/competitions', (c) => {
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <link rel="stylesheet" href="/static/shared-styles.css">
-        <link rel="stylesheet" href="/static/enhanced-styles.css">
+        <link rel="stylesheet" href="/static/koorax-pro.css">
     </head>
     <body>
         <nav class="glass-card sticky top-0 z-50 mb-8">
@@ -1915,8 +1909,7 @@ app.get('/competitions/:id', (c) => {
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <link rel="stylesheet" href="/static/shared-styles.css">
-        <link rel="stylesheet" href="/static/enhanced-styles.css">
+        <link rel="stylesheet" href="/static/koorax-pro.css">
         <style>
           .tab-button {
             padding: 16px 32px;
