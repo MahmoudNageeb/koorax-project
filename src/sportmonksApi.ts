@@ -9,19 +9,35 @@ export const API_BASE_URL = 'https://api.sportmonks.com/v3/football';
 export const API_TOKEN = '4Q2MEVr3Ee1DnjWipeOAiq7mIlkbDlWRTx02XsPoeZUB0zMeh8EtkYLysMJP';
 
 // League IDs for SportMonks
+// NOTE: Current token is FREE PLAN and only supports these leagues
+// For major European leagues (PL, La Liga, etc), upgrade to PAID PLAN
+// See API_LIMITATION_NOTICE.md for details
 export const ALLOWED_COMPETITION_IDS = [
-  8,    // Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿
-  564,  // La Liga 🇪🇸
-  384,  // Serie A 🇮🇹
-  82,   // Bundesliga 🇩🇪
-  301,  // Ligue 1 🇫🇷
-  2,    // UEFA Champions League 🏆
-  307,  // Egyptian Premier League 🇪🇬
-  383,  // Saudi Pro League 🇸🇦
-  427   // Kuwaiti Premier League 🇰🇼
+  271,  // Danish Superliga 🇩🇰
+  501,  // Scottish Premiership 🏴󠁧󠁢󠁳󠁣󠁴󠁿
+  513,  // Scottish Premiership Play-Offs 🏴󠁧󠁢󠁳󠁣󠁴󠁿
+  1659  // Danish Superliga Play-offs 🇩🇰
+  
+  // DESIRED LEAGUES (requires PAID plan):
+  // 8,    // Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿
+  // 564,  // La Liga 🇪🇸
+  // 384,  // Serie A 🇮🇹
+  // 82,   // Bundesliga 🇩🇪
+  // 301,  // Ligue 1 🇫🇷
+  // 2,    // UEFA Champions League 🏆
+  // 307,  // Egyptian Premier League 🇪🇬
+  // 383,  // Saudi Pro League 🇸🇦
+  // 427   // Kuwaiti Premier League 🇰🇼
 ];
 
 export const COMPETITIONS_INFO: Record<number, { name: string; icon: string; country: string }> = {
+  // Available in FREE plan
+  271: { name: 'الدوري الدنماركي', icon: '🇩🇰', country: 'Denmark' },
+  501: { name: 'الدوري الاسكتلندي', icon: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', country: 'Scotland' },
+  513: { name: 'تصفيات الدوري الاسكتلندي', icon: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', country: 'Scotland' },
+  1659: { name: 'تصفيات الدوري الدنماركي', icon: '🇩🇰', country: 'Denmark' },
+  
+  // DESIRED (requires PAID plan)
   8: { name: 'الدوري الإنجليزي', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', country: 'England' },
   564: { name: 'الدوري الإسباني', icon: '🇪🇸', country: 'Spain' },
   384: { name: 'الدوري الإيطالي', icon: '🇮🇹', country: 'Italy' },
@@ -96,13 +112,16 @@ export async function getMatches(env: FootballApiEnv, status?: string) {
   try {
     const today = new Date().toISOString().split('T')[0];
     const params: Record<string, string> = {
-      include: 'participants,scores,league',
+      include: 'league',
       per_page: '100'
     };
 
     // Filter by date - get today's matches
     if (!status) {
-      params.date = today;
+      // Use date_between for today's matches
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      params.date_between = `${today},${tomorrow.toISOString().split('T')[0]}`;
     }
 
     const data = await fetchFromSportMonks('/fixtures', params);
@@ -126,9 +145,8 @@ export async function getMatches(env: FootballApiEnv, status?: string) {
 export async function getMatchesByDateRange(env: FootballApiEnv, dateFrom: string, dateTo: string) {
   try {
     const params: Record<string, string> = {
-      include: 'participants,scores,league',
-      date_from: dateFrom,
-      date_to: dateTo,
+      include: 'league',
+      date_between: `${dateFrom},${dateTo}`,
       per_page: '100'
     };
 
@@ -229,7 +247,7 @@ export async function getTopScorers(env: FootballApiEnv, competitionId: number) 
 export async function getMatchById(env: FootballApiEnv, matchId: number) {
   try {
     const data = await fetchFromSportMonks(`/fixtures/${matchId}`, {
-      include: 'participants,scores,league,venue,events,lineup,statistics'
+      include: 'league,participants,scores'
     });
 
     return transformFixture(data.data);
@@ -241,9 +259,23 @@ export async function getMatchById(env: FootballApiEnv, matchId: number) {
 
 // Transform SportMonks fixture to our format
 function transformFixture(fixture: any) {
+  // Parse team names from match name (e.g., "Team A vs Team B")
+  const matchName = fixture.name || '';
+  const teams = matchName.split(' vs ');
+  
   const participants = fixture.participants || [];
-  const homeTeam = participants.find((p: any) => p.meta?.location === 'home') || participants[0];
-  const awayTeam = participants.find((p: any) => p.meta?.location === 'away') || participants[1];
+  const homeTeam = participants.find((p: any) => p.meta?.location === 'home') || participants[0] || {
+    id: 0,
+    name: teams[0] || 'Home Team',
+    short_code: teams[0]?.substring(0, 3) || 'HOM',
+    image_path: null
+  };
+  const awayTeam = participants.find((p: any) => p.meta?.location === 'away') || participants[1] || {
+    id: 0,
+    name: teams[1] || 'Away Team',
+    short_code: teams[1]?.substring(0, 3) || 'AWA',
+    image_path: null
+  };
   
   const scores = fixture.scores || [];
   const fullTimeScore = scores.find((s: any) => s.description === 'CURRENT') || scores[0];
