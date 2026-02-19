@@ -191,23 +191,15 @@ app.get('/', (c) => {
           </div>
         </div>
         
-        <!-- Quick Links -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <a href="/matches" class="glass-card p-6 text-center hover:scale-105 transition-transform">
-            <i class="fas fa-calendar-alt text-4xl text-primary mb-3"></i>
-            <h3 class="font-bold" data-translate="matches">المباريات</h3>
+        <!-- Quick Links - Only Matches and Competitions -->
+        <div class="grid grid-cols-2 gap-4">
+          <a href="/matches" class="glass-card p-8 text-center hover:scale-105 transition-transform">
+            <i class="fas fa-calendar-alt text-5xl text-primary mb-4"></i>
+            <h3 class="text-xl font-bold" data-translate="matches">المباريات</h3>
           </a>
-          <a href="/competitions" class="glass-card p-6 text-center hover:scale-105 transition-transform">
-            <i class="fas fa-trophy text-4xl text-yellow-500 mb-3"></i>
-            <h3 class="font-bold" data-translate="competitions">البطولات</h3>
-          </a>
-          <a href="/standings" class="glass-card p-6 text-center hover:scale-105 transition-transform">
-            <i class="fas fa-list-ol text-4xl text-blue-500 mb-3"></i>
-            <h3 class="font-bold" data-translate="standings">الترتيب</h3>
-          </a>
-          <a href="/scorers" class="glass-card p-6 text-center hover:scale-105 transition-transform">
-            <i class="fas fa-futbol text-4xl text-green-500 mb-3"></i>
-            <h3 class="font-bold" data-translate="scorers">الهدافون</h3>
+          <a href="/competitions" class="glass-card p-8 text-center hover:scale-105 transition-transform">
+            <i class="fas fa-trophy text-5xl text-yellow-500 mb-4"></i>
+            <h3 class="text-xl font-bold" data-translate="competitions">البطولات</h3>
           </a>
         </div>
     </div>
@@ -305,7 +297,7 @@ app.get('/', (c) => {
   `);
 });
 
-// Matches page - Complete with all filters
+// Matches page - Complete with all filters + Mobile Menu
 app.get('/matches', (c) => {
   return c.html(`
 <!DOCTYPE html>
@@ -362,6 +354,24 @@ app.get('/matches', (c) => {
             <div class="skeleton h-32"></div>
           </div>
         </div>
+    </div>
+    
+    <!-- Mobile Menu Bar -->
+    <div class="mobile-menu-bar">
+      <nav>
+        <a href="/" class="mobile-menu-item">
+          <i class="fas fa-home"></i>
+          <span data-translate="home">الرئيسية</span>
+        </a>
+        <a href="/matches" class="mobile-menu-item active">
+          <i class="fas fa-calendar-alt"></i>
+          <span data-translate="matches">المباريات</span>
+        </a>
+        <a href="/competitions" class="mobile-menu-item">
+          <i class="fas fa-trophy"></i>
+          <span data-translate="competitions">البطولات</span>
+        </a>
+      </nav>
     </div>
     
     <script src="/static/koorax-features.js"></script>
@@ -469,17 +479,17 @@ app.get('/matches', (c) => {
               <span class="text-sm text-secondary">\${new Date(match.utcDate).toLocaleDateString('ar-EG')}</span>
               \${statusBadge}
             </div>
-            <div class="flex items-center justify-between gap-4">
-              <div class="flex items-center gap-3 flex-1">
-                <img src="\${match.homeTeam.crest || ''}" alt="\${match.homeTeam.name}" class="team-logo w-12 h-12" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E⚽%3C/text%3E%3C/svg%3E'">
-                <span class="font-bold truncate">\${match.homeTeam.name}</span>
+            <div class="flex items-center justify-between gap-2 md:gap-4">
+              <div class="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                <img src="\${match.homeTeam.crest || ''}" alt="\${match.homeTeam.name}" class="team-logo w-10 h-10 md:w-12 md:h-12 flex-shrink-0" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E⚽%3C/text%3E%3C/svg%3E'">
+                <span class="font-bold truncate text-sm md:text-base">\${match.homeTeam.name}</span>
               </div>
-              <div class="text-center px-4">
+              <div class="text-center px-2 md:px-4 flex-shrink-0">
                 \${score}
               </div>
-              <div class="flex items-center gap-3 flex-1 justify-end">
-                <span class="font-bold truncate">\${match.awayTeam.name}</span>
-                <img src="\${match.awayTeam.crest || ''}" alt="\${match.awayTeam.name}" class="team-logo w-12 h-12" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E⚽%3C/text%3E%3C/svg%3E'">
+              <div class="flex items-center gap-2 md:gap-3 flex-1 justify-end min-w-0">
+                <span class="font-bold truncate text-sm md:text-base">\${match.awayTeam.name}</span>
+                <img src="\${match.awayTeam.crest || ''}" alt="\${match.awayTeam.name}" class="team-logo w-10 h-10 md:w-12 md:h-12 flex-shrink-0" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E⚽%3C/text%3E%3C/svg%3E'">
               </div>
             </div>
           </a>
@@ -686,7 +696,7 @@ app.get('/matches/:id', (c) => {
   `);
 });
 
-// Competitions page
+// Competitions page + Mobile Menu
 app.get('/competitions', (c) => {
   return c.html(`
 <!DOCTYPE html>
@@ -716,6 +726,24 @@ app.get('/competitions', (c) => {
           <div class="skeleton h-48"></div>
           <div class="skeleton h-48"></div>
         </div>
+    </div>
+    
+    <!-- Mobile Menu Bar -->
+    <div class="mobile-menu-bar">
+      <nav>
+        <a href="/" class="mobile-menu-item">
+          <i class="fas fa-home"></i>
+          <span data-translate="home">الرئيسية</span>
+        </a>
+        <a href="/matches" class="mobile-menu-item">
+          <i class="fas fa-calendar-alt"></i>
+          <span data-translate="matches">المباريات</span>
+        </a>
+        <a href="/competitions" class="mobile-menu-item active">
+          <i class="fas fa-trophy"></i>
+          <span data-translate="competitions">البطولات</span>
+        </a>
+      </nav>
     </div>
     
     <script src="/static/koorax-features.js"></script>

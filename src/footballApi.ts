@@ -106,14 +106,25 @@ export async function getCompetitions(env: FootballApiEnv) {
   }
 }
 
-// Get matches with filters
+// Get matches with filters (last 3 days + next 3 days)
 export async function getMatches(env: FootballApiEnv, status?: string) {
   try {
     const token = env.FOOTBALL_API_TOKEN || API_TOKEN;
-    let endpoint = '/matches';
+    
+    // Calculate date range: 3 days ago to 3 days from now
+    const today = new Date();
+    const dateFrom = new Date(today);
+    dateFrom.setDate(dateFrom.getDate() - 3);
+    const dateTo = new Date(today);
+    dateTo.setDate(dateTo.getDate() + 3);
+    
+    const dateFromStr = dateFrom.toISOString().split('T')[0];
+    const dateToStr = dateTo.toISOString().split('T')[0];
+    
+    let endpoint = `/matches?dateFrom=${dateFromStr}&dateTo=${dateToStr}`;
     
     if (status) {
-      endpoint += `?status=${status}`;
+      endpoint += `&status=${status}`;
     }
     
     const data = await fetchFromAPI(endpoint, token);
