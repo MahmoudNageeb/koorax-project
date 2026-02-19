@@ -526,19 +526,20 @@ body {
   left: 0;
   right: 0;
   background: var(--bg-card);
+  backdrop-filter: blur(12px);
   border-top: 2px solid var(--border);
   box-shadow: 0 -4px 16px var(--shadow);
-  z-index: 100;
+  z-index: 1000;
   display: none;
 }
 
 @media (max-width: 768px) {
   .mobile-menu-bar {
-    display: block;
+    display: block !important;
   }
   
   body {
-    padding-bottom: 80px; /* Space for mobile menu */
+    padding-bottom: 85px !important; /* Space for mobile menu */
   }
 }
 

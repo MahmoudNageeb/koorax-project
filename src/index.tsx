@@ -508,7 +508,7 @@ app.get('/matches', (c) => {
   `);
 });
 
-// Match Details page - Full details with events, lineup, stats
+// Match Details page - COMPLETE with all details
 app.get('/matches/:id', (c) => {
   const matchId = c.req.param('id');
   return c.html(`
@@ -522,14 +522,82 @@ app.get('/matches/:id', (c) => {
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <link rel="stylesheet" href="/static/koorax-enhanced.css">
+    <style>
+      .event-timeline {
+        position: relative;
+        padding-left: 30px;
+      }
+      .event-timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--border);
+      }
+      .event-item {
+        position: relative;
+        margin-bottom: 20px;
+      }
+      .event-item::before {
+        content: '';
+        position: absolute;
+        left: -23px;
+        top: 10px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--primary);
+        border: 3px solid var(--bg-card);
+        z-index: 1;
+      }
+      .stat-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: var(--border);
+        overflow: hidden;
+      }
+      .stat-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary), var(--primary-light));
+        transition: width 0.5s ease;
+      }
+    </style>
 </head>
 <body>
     ${getEnhancedHeader()}
     
-    <div class="container mx-auto px-4 py-6">
+    <div class="container mx-auto px-4 py-6 pb-24">
+        <!-- Back Button -->
+        <div class="mb-4">
+          <a href="/matches" class="inline-flex items-center gap-2 text-primary hover:underline">
+            <i class="fas fa-arrow-right"></i>
+            <span data-translate="backToMatches">العودة للمباريات</span>
+          </a>
+        </div>
+        
         <div id="match-details-container">
           <div class="skeleton h-96"></div>
         </div>
+    </div>
+    
+    <!-- Mobile Menu Bar -->
+    <div class="mobile-menu-bar">
+      <nav>
+        <a href="/" class="mobile-menu-item">
+          <i class="fas fa-home"></i>
+          <span data-translate="home">الرئيسية</span>
+        </a>
+        <a href="/matches" class="mobile-menu-item active">
+          <i class="fas fa-calendar-alt"></i>
+          <span data-translate="matches">المباريات</span>
+        </a>
+        <a href="/competitions" class="mobile-menu-item">
+          <i class="fas fa-trophy"></i>
+          <span data-translate="competitions">البطولات</span>
+        </a>
+      </nav>
     </div>
     
     <script src="/static/koorax-features.js"></script>
@@ -561,90 +629,247 @@ app.get('/matches/:id', (c) => {
           : \`<span class="status-scheduled">\${t('scheduled')}</span>\`;
         
         const score = (match.status === 'FINISHED' || match.status === 'IN_PLAY' || match.status === 'PAUSED')
-          ? \`<div class="text-6xl font-black gradient-text">\${match.score.fullTime.home || 0} - \${match.score.fullTime.away || 0}</div>\`
-          : \`<div class="text-2xl text-secondary">\${new Date(match.utcDate).toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit'})}</div>\`;
+          ? \`<div class="text-5xl md:text-6xl font-black gradient-text">\${match.score.fullTime.home || 0} - \${match.score.fullTime.away || 0}</div>\`
+          : \`<div class="text-xl md:text-2xl text-secondary">\${new Date(match.utcDate).toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit'})}</div>\`;
         
         let html = \`
           <!-- Match Header -->
-          <div class="glass-card p-8 rounded-2xl mb-6">
+          <div class="glass-card p-4 md:p-8 rounded-2xl mb-6">
             <div class="text-center mb-6">
               <div class="flex items-center justify-center gap-3 mb-4">
-                \${match.competition.emblem ? \`<img src="\${match.competition.emblem}" class="w-12 h-12" onerror="this.style.display='none'">\` : ''}
-                <h2 class="text-xl font-bold">\${match.competition.name}</h2>
+                \${match.competition.emblem ? \`<img src="\${match.competition.emblem}" class="w-8 h-8 md:w-12 md:h-12" onerror="this.style.display='none'">\` : ''}
+                <h2 class="text-lg md:text-xl font-bold">\${match.competition.name}</h2>
               </div>
               \${statusBadge}
             </div>
             
-            <div class="grid grid-cols-3 gap-8 items-center mb-6">
+            <div class="grid grid-cols-3 gap-2 md:gap-8 items-center mb-6">
               <!-- Home Team -->
               <div class="text-center">
-                <img src="\${match.homeTeam.crest || ''}" alt="\${match.homeTeam.name}" class="w-24 h-24 mx-auto mb-4" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E⚽%3C/text%3E%3C/svg%3E'">
-                <h3 class="text-2xl font-bold">\${match.homeTeam.name}</h3>
+                <img src="\${match.homeTeam.crest || ''}" alt="\${match.homeTeam.name}" class="w-16 h-16 md:w-24 md:h-24 mx-auto mb-2 md:mb-4" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E⚽%3C/text%3E%3C/svg%3E'">
+                <h3 class="text-base md:text-2xl font-bold truncate">\${match.homeTeam.name}</h3>
               </div>
               
               <!-- Score -->
               <div class="text-center">
                 \${score}
-                <p class="text-sm text-secondary mt-2">\${new Date(match.utcDate).toLocaleString('ar-EG')}</p>
+                <p class="text-xs md:text-sm text-secondary mt-2">\${new Date(match.utcDate).toLocaleString('ar-EG', {dateStyle: 'short', timeStyle: 'short'})}</p>
               </div>
               
               <!-- Away Team -->
               <div class="text-center">
-                <img src="\${match.awayTeam.crest || ''}" alt="\${match.awayTeam.name}" class="w-24 h-24 mx-auto mb-4" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E⚽%3C/text%3E%3C/svg%3E'">
-                <h3 class="text-2xl font-bold">\${match.awayTeam.name}</h3>
+                <img src="\${match.awayTeam.crest || ''}" alt="\${match.awayTeam.name}" class="w-16 h-16 md:w-24 md:h-24 mx-auto mb-2 md:mb-4" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E⚽%3C/text%3E%3C/svg%3E'">
+                <h3 class="text-base md:text-2xl font-bold truncate">\${match.awayTeam.name}</h3>
               </div>
             </div>
+            
+            <!-- Half-time Score -->
+            \${match.score && match.score.halfTime ? \`
+              <div class="text-center py-3 mb-6 border-t border-b border-white/10">
+                <p class="text-sm text-secondary mb-1">\${t('halfTime') || 'الشوط الأول'}</p>
+                <p class="text-2xl font-bold text-primary">\${match.score.halfTime.home || 0} - \${match.score.halfTime.away || 0}</p>
+              </div>
+            \` : ''}
             
             <!-- Match Info -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-white/10">
               \${match.venue ? \`
-                <div class="text-center">
-                  <i class="fas fa-map-marker-alt text-primary mb-2"></i>
-                  <p class="text-sm text-secondary" data-translate="venue">\${t('venue')}</p>
-                  <p class="font-bold">\${match.venue}</p>
+                <div class="text-center p-3 bg-white/5 rounded-lg">
+                  <i class="fas fa-map-marker-alt text-primary mb-2 text-xl"></i>
+                  <p class="text-xs text-secondary" data-translate="venue">\${t('venue')}</p>
+                  <p class="font-bold text-sm">\${match.venue}</p>
                 </div>
               \` : ''}
               \${match.referees && match.referees.length > 0 ? \`
-                <div class="text-center">
-                  <i class="fas fa-user-tie text-primary mb-2"></i>
-                  <p class="text-sm text-secondary" data-translate="referee">\${t('referee')}</p>
-                  <p class="font-bold">\${match.referees[0].name}</p>
+                <div class="text-center p-3 bg-white/5 rounded-lg">
+                  <i class="fas fa-user-tie text-primary mb-2 text-xl"></i>
+                  <p class="text-xs text-secondary" data-translate="referee">\${t('referee')}</p>
+                  <p class="font-bold text-sm">\${match.referees[0].name}</p>
                 </div>
               \` : ''}
               \${match.attendance ? \`
-                <div class="text-center">
-                  <i class="fas fa-users text-primary mb-2"></i>
-                  <p class="text-sm text-secondary" data-translate="attendance">\${t('attendance')}</p>
-                  <p class="font-bold">\${match.attendance.toLocaleString()}</p>
+                <div class="text-center p-3 bg-white/5 rounded-lg">
+                  <i class="fas fa-users text-primary mb-2 text-xl"></i>
+                  <p class="text-xs text-secondary" data-translate="attendance">\${t('attendance')}</p>
+                  <p class="font-bold text-sm">\${match.attendance.toLocaleString()}</p>
                 </div>
               \` : ''}
             </div>
           </div>
         \`;
         
-        // Events (Goals, Cards, Substitutions)
+        // ALL EVENTS TIMELINE - Goals, Cards, Substitutions
+        const allEvents = [];
+        
+        // Add Goals
         if (match.goals && match.goals.length > 0) {
+          match.goals.forEach(goal => {
+            allEvents.push({
+              minute: goal.minute,
+              type: 'goal',
+              player: goal.scorer.name,
+              team: goal.team.name,
+              teamId: goal.team.id,
+              assist: goal.assist ? goal.assist.name : null,
+              icon: 'fa-futbol',
+              color: 'text-primary'
+            });
+          });
+        }
+        
+        // Add Bookings (Yellow/Red Cards)
+        if (match.bookings && match.bookings.length > 0) {
+          match.bookings.forEach(booking => {
+            allEvents.push({
+              minute: booking.minute,
+              type: booking.card === 'YELLOW_CARD' ? 'yellow' : 'red',
+              player: booking.player.name,
+              team: booking.team.name,
+              teamId: booking.team.id,
+              icon: 'fa-square',
+              color: booking.card === 'YELLOW_CARD' ? 'text-yellow-500' : 'text-red-500'
+            });
+          });
+        }
+        
+        // Add Substitutions
+        if (match.substitutions && match.substitutions.length > 0) {
+          match.substitutions.forEach(sub => {
+            allEvents.push({
+              minute: sub.minute,
+              type: 'substitution',
+              playerOut: sub.playerOut.name,
+              playerIn: sub.playerIn.name,
+              team: sub.team.name,
+              teamId: sub.team.id,
+              icon: 'fa-exchange-alt',
+              color: 'text-blue-500'
+            });
+          });
+        }
+        
+        // Sort by minute
+        allEvents.sort((a, b) => a.minute - b.minute);
+        
+        // Display Events Timeline
+        if (allEvents.length > 0) {
           html += \`
-            <div class="glass-card p-6 rounded-2xl mb-6">
-              <h3 class="text-2xl font-bold gradient-text mb-4">
-                <i class="fas fa-futbol mr-3"></i>
-                <span data-translate="events">\${t('events')}</span>
+            <div class="glass-card p-4 md:p-6 rounded-2xl mb-6">
+              <h3 class="text-xl md:text-2xl font-bold gradient-text mb-6">
+                <i class="fas fa-list-ul mr-3"></i>
+                <span data-translate="events">\${t('events') || 'الأحداث'}</span>
               </h3>
-              <div class="space-y-3">
-                \${match.goals.map(goal => \`
-                  <div class="flex items-center gap-4 p-4 bg-white/5 rounded-xl">
-                    <div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center font-bold">
-                      \${goal.minute}'
+              <div class="event-timeline">
+                \${allEvents.map(event => {
+                  const isHome = event.teamId === match.homeTeam.id;
+                  
+                  if (event.type === 'goal') {
+                    return \`
+                      <div class="event-item">
+                        <div class="glass-card p-4 rounded-xl hover:scale-[1.02] transition-transform">
+                          <div class="flex items-center justify-between gap-4">
+                            <div class="flex items-center gap-3 flex-1">
+                              <div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary flex-shrink-0">
+                                \${event.minute}'
+                              </div>
+                              <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1">
+                                  <i class="fas \${event.icon} \${event.color} text-xl"></i>
+                                  <p class="font-bold truncate">\${event.player}</p>
+                                </div>
+                                <p class="text-xs text-secondary truncate">\${event.team}</p>
+                                \${event.assist ? \`<p class="text-xs text-secondary">تمريرة: \${event.assist}</p>\` : ''}
+                              </div>
+                            </div>
+                            <div class="text-2xl font-black \${isHome ? 'text-primary' : 'text-blue-500'} flex-shrink-0">
+                              ⚽
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    \`;
+                  } else if (event.type === 'yellow' || event.type === 'red') {
+                    return \`
+                      <div class="event-item">
+                        <div class="glass-card p-4 rounded-xl">
+                          <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center font-bold flex-shrink-0">
+                              \${event.minute}'
+                            </div>
+                            <div class="flex-1 min-w-0">
+                              <div class="flex items-center gap-2 mb-1">
+                                <i class="fas \${event.icon} \${event.color} text-xl"></i>
+                                <p class="font-bold truncate">\${event.player}</p>
+                              </div>
+                              <p class="text-xs text-secondary truncate">\${event.team}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    \`;
+                  } else if (event.type === 'substitution') {
+                    return \`
+                      <div class="event-item">
+                        <div class="glass-card p-4 rounded-xl">
+                          <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center font-bold flex-shrink-0">
+                              \${event.minute}'
+                            </div>
+                            <div class="flex-1 min-w-0">
+                              <div class="flex items-center gap-2 mb-1">
+                                <i class="fas \${event.icon} \${event.color}"></i>
+                                <p class="text-sm"><span class="text-red-500">⬇ \${event.playerOut}</span></p>
+                              </div>
+                              <p class="text-sm text-primary">⬆ \${event.playerIn}</p>
+                              <p class="text-xs text-secondary truncate">\${event.team}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    \`;
+                  }
+                }).join('')}
+              </div>
+            </div>
+          \`;
+        }
+        
+        // Statistics
+        if (match.score && (match.score.fullTime.home !== null || match.status === 'IN_PLAY')) {
+          html += \`
+            <div class="glass-card p-4 md:p-6 rounded-2xl mb-6">
+              <h3 class="text-xl md:text-2xl font-bold gradient-text mb-6">
+                <i class="fas fa-chart-bar mr-3"></i>
+                <span data-translate="statistics">\${t('statistics') || 'الإحصائيات'}</span>
+              </h3>
+              <div class="space-y-4">
+                <!-- Goals -->
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="font-bold">\${match.score.fullTime.home || 0}</span>
+                    <span class="text-sm text-secondary">\${t('goals') || 'الأهداف'}</span>
+                    <span class="font-bold">\${match.score.fullTime.away || 0}</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div class="stat-bar">
+                      <div class="stat-fill" style="width: \${match.score.fullTime.home ? (match.score.fullTime.home / (match.score.fullTime.home + match.score.fullTime.away || 1)) * 100 : 0}%"></div>
                     </div>
-                    <div class="flex-1">
-                      <p class="font-bold">\${goal.scorer.name}</p>
-                      <p class="text-sm text-secondary">\${goal.team.name}</p>
-                    </div>
-                    <div>
-                      <i class="fas fa-futbol text-2xl text-primary"></i>
+                    <div class="stat-bar" style="transform: scaleX(-1)">
+                      <div class="stat-fill" style="width: \${match.score.fullTime.away ? (match.score.fullTime.away / (match.score.fullTime.home + match.score.fullTime.away || 1)) * 100 : 0}%"></div>
                     </div>
                   </div>
-                \`).join('')}
+                </div>
+                
+                <!-- Cards -->
+                \${match.bookings && match.bookings.length > 0 ? \`
+                  <div>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="font-bold">\${match.bookings.filter(b => b.team.id === match.homeTeam.id).length}</span>
+                      <span class="text-sm text-secondary">\${t('yellowCard') || 'البطاقات'}</span>
+                      <span class="font-bold">\${match.bookings.filter(b => b.team.id === match.awayTeam.id).length}</span>
+                    </div>
+                  </div>
+                \` : ''}
               </div>
             </div>
           \`;
@@ -653,25 +878,43 @@ app.get('/matches/:id', (c) => {
         // Lineup
         if (match.lineups && match.lineups.length > 0) {
           html += \`
-            <div class="glass-card p-6 rounded-2xl mb-6">
-              <h3 class="text-2xl font-bold gradient-text mb-4">
+            <div class="glass-card p-4 md:p-6 rounded-2xl mb-6">
+              <h3 class="text-xl md:text-2xl font-bold gradient-text mb-4">
                 <i class="fas fa-users mr-3"></i>
-                <span data-translate="lineup">\${t('lineup')}</span>
+                <span data-translate="lineup">\${t('lineup') || 'التشكيلة'}</span>
               </h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 \${match.lineups.map(lineup => \`
                   <div>
-                    <h4 class="text-xl font-bold mb-4">\${lineup.team.name}</h4>
-                    <p class="text-sm text-secondary mb-3">\${t('lineup')}: \${lineup.formation || 'N/A'}</p>
+                    <div class="flex items-center gap-3 mb-4 p-3 bg-white/5 rounded-lg">
+                      <img src="\${lineup.team.crest}" class="w-8 h-8" onerror="this.style.display='none'">
+                      <h4 class="text-lg font-bold flex-1">\${lineup.team.name}</h4>
+                      <span class="text-sm text-secondary">\${lineup.formation || 'N/A'}</span>
+                    </div>
                     <div class="space-y-2">
                       \${lineup.startingEleven ? lineup.startingEleven.map(player => \`
-                        <div class="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
-                          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-bold text-sm">
+                        <div class="flex items-center gap-3 p-2 md:p-3 bg-white/5 rounded-lg hover:bg-white/10 transition">
+                          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-bold text-sm flex-shrink-0">
                             \${player.shirtNumber || '-'}
                           </div>
-                          <p class="flex-1">\${player.name}</p>
+                          <p class="flex-1 text-sm md:text-base truncate">\${player.name}</p>
+                          <span class="text-xs text-secondary">\${player.position || ''}</span>
                         </div>
                       \`).join('') : '<p class="text-sm text-secondary">لا توجد تشكيلة</p>'}
+                      
+                      \${lineup.substitutes && lineup.substitutes.length > 0 ? \`
+                        <div class="mt-4 pt-4 border-t border-white/10">
+                          <p class="text-sm text-secondary mb-2 font-bold">\${t('substitutes') || 'البدلاء'}:</p>
+                          \${lineup.substitutes.map(player => \`
+                            <div class="flex items-center gap-3 p-2 bg-white/5 rounded-lg mb-1">
+                              <div class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs flex-shrink-0">
+                                \${player.shirtNumber || '-'}
+                              </div>
+                              <p class="flex-1 text-sm truncate">\${player.name}</p>
+                            </div>
+                          \`).join('')}
+                        </div>
+                      \` : ''}
                     </div>
                   </div>
                 \`).join('')}
@@ -695,7 +938,6 @@ app.get('/matches/:id', (c) => {
 </html>
   `);
 });
-
 // Competitions page + Mobile Menu
 app.get('/competitions', (c) => {
   return c.html(`
