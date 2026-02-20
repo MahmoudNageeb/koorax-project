@@ -124,6 +124,10 @@ function getEnhancedHeader(currentPage: string = '') {
           <i class="fas fa-trophy"></i>
           <span class="hidden md:inline" data-translate="competitions">البطولات</span>
         </a>
+        <a href="/quiz" class="nav-link ${currentPage === 'quiz' ? 'active' : ''}">
+          <i class="fas fa-question-circle"></i>
+          <span class="hidden md:inline">الفزورة</span>
+        </a>
         
         <!-- Dark Mode Toggle -->
         <button onclick="kooraxToggleDarkMode()" class="header-btn" title="Toggle Dark Mode">
@@ -1694,5 +1698,489 @@ app.get('/teams/:id', (c) => {
 </html>
   `);
 });
+
+
+// Quiz Page - فزورة كوراكس
+app.get('/quiz', (c) => {
+  return c.html(`
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚽ Koorax - فزورة كوراكس</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="/static/koorax-enhanced.css">
+    <style>
+      .quiz-option {
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        padding: 1rem;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        text-align: right;
+      }
+      .quiz-option:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: var(--primary);
+        transform: translateX(-5px);
+      }
+      .quiz-option:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .quiz-option.correct {
+        background: rgba(16, 185, 129, 0.2);
+        border-color: #10b981;
+        animation: correctPulse 0.5s ease;
+      }
+      .quiz-option.wrong {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: #ef4444;
+        animation: shake 0.5s ease;
+      }
+      @keyframes correctPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+      }
+      .result-box {
+        animation: fadeInScale 0.5s ease;
+      }
+      @keyframes fadeInScale {
+        from {
+          opacity: 0;
+          transform: scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      .leaderboard-row {
+        transition: all 0.3s ease;
+      }
+      .leaderboard-row:hover {
+        background: rgba(255, 255, 255, 0.05);
+        transform: translateX(-5px);
+      }
+      .leaderboard-row.top-1 {
+        background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent);
+        border-left: 4px solid #FFD700;
+      }
+      .leaderboard-row.top-2 {
+        background: linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent);
+        border-left: 4px solid #C0C0C0;
+      }
+      .leaderboard-row.top-3 {
+        background: linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent);
+        border-left: 4px solid #CD7F32;
+      }
+      .leaderboard-row.current-user {
+        background: rgba(124, 58, 237, 0.1);
+        border-left: 4px solid var(--primary);
+        font-weight: bold;
+      }
+      .countdown-timer {
+        font-family: 'Courier New', monospace;
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--primary);
+      }
+    </style>
+</head>
+<body>
+    ${getEnhancedHeader('quiz')}
+    
+    <div class="container mx-auto px-4 py-6 pb-24">
+        <!-- Page Title -->
+        <div class="glass-card p-6 rounded-2xl mb-6">
+          <h1 class="text-4xl font-black gradient-text mb-2">
+            <i class="fas fa-question-circle mr-3"></i>
+            <span>فزورة كوراكس</span>
+          </h1>
+          <p class="text-secondary">اختبر معلوماتك الكروية واربح النقاط!</p>
+        </div>
+
+        <!-- Countdown Timer -->
+        <div class="glass-card p-6 rounded-2xl mb-6 text-center">
+          <p class="text-lg text-secondary mb-2">
+            <i class="fas fa-clock mr-2"></i>
+            الوقت المتبقي للسؤال القادم
+          </p>
+          <div id="countdown-timer" class="countdown-timer"></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Quiz Section -->
+          <div class="lg:col-span-2">
+            <div id="quiz-container"></div>
+          </div>
+
+          <!-- Leaderboard Section -->
+          <div class="lg:col-span-1">
+            <div class="glass-card p-6 rounded-2xl sticky top-6">
+              <h2 class="text-2xl font-bold gradient-text mb-4">
+                <i class="fas fa-trophy mr-2"></i>
+                الصدارة الأسبوعية
+              </h2>
+              <div id="leaderboard-container">
+                <div class="skeleton h-64"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+    
+    <!-- Mobile Menu Bar -->
+    <div class="mobile-menu-bar">
+      <nav>
+        <a href="/" class="mobile-menu-item">
+          <i class="fas fa-home"></i>
+          <span data-translate="home">الرئيسية</span>
+        </a>
+        <a href="/matches" class="mobile-menu-item">
+          <i class="fas fa-calendar-alt"></i>
+          <span data-translate="matches">المباريات</span>
+        </a>
+        <a href="/competitions" class="mobile-menu-item">
+          <i class="fas fa-trophy"></i>
+          <span data-translate="competitions">البطولات</span>
+        </a>
+        <a href="/quiz" class="mobile-menu-item active">
+          <i class="fas fa-question-circle"></i>
+          <span>الفزورة</span>
+        </a>
+      </nav>
+    </div>
+    
+    <script src="/static/koorax-features.js"></script>
+    <script>
+      // Mock Data - Replace with API calls
+      const MOTIVATIONAL_MESSAGES = [
+        '🔥 جامد جدًا! واضح إنك خبير كورة!',
+        '👑 أسد الفوازير!',
+        '⚽ ذكاء كروي من العيار التقيل!',
+        '🚀 استمر.. الصدارة بتنادي!',
+        '💪 أداء عالمي!',
+        '🎯 إجابة دقيقة زي ضربة جزاء رونالدو!',
+        '⚡ سرعة بديهة خيالية!',
+        '🏆 بطل الفوازير الكروية!',
+        '🌟 نجم اليوم بلا منازع!',
+        '🎖️ أداء احترافي من الطراز الأول!'
+      ];
+
+      const mockQuiz = {
+        questionId: 1,
+        text: 'من هو الهداف التاريخي لدوري أبطال أوروبا؟',
+        options: ['كريستيانو رونالدو', 'ليونيل ميسي', 'روبرت ليفاندوفسكي', 'كريم بنزيما'],
+        correctAnswer: 'كريستيانو رونالدو',
+        points: 10
+      };
+
+      const mockLeaderboard = [
+        { rank: 1, username: 'Mahmoud_10', points: 150, isCurrentUser: false },
+        { rank: 2, username: 'Ahmed_Ahmed', points: 140, isCurrentUser: false },
+        { rank: 3, username: 'Salah_Fan', points: 130, isCurrentUser: false },
+        { rank: 4, username: 'Mohamed_CR7', points: 120, isCurrentUser: true },
+        { rank: 5, username: 'Ali_Barca', points: 110, isCurrentUser: false },
+        { rank: 6, username: 'Hassan_LFC', points: 100, isCurrentUser: false },
+        { rank: 7, username: 'Youssef_RM', points: 90, isCurrentUser: false },
+        { rank: 8, username: 'Omar_Bayern', points: 80, isCurrentUser: false },
+        { rank: 9, username: 'Khaled_MC', points: 70, isCurrentUser: false },
+        { rank: 10, username: 'Tamer_PSG', points: 60, isCurrentUser: false }
+      ];
+
+      // User state - Replace with real auth system
+      let isLoggedIn = true; // Change to false to test login prompt
+      let currentUserId = 4; // Mock user ID
+      let hasAnsweredToday = false;
+
+      // ==================== FUTURE BACKEND FUNCTIONS ====================
+      
+      /**
+       * Fetch today's quiz question
+       * @returns {Promise<Object>} Quiz data
+       */
+      async function fetchTodayQuiz() {
+        // TODO: Replace with real API call
+        // const response = await axios.get('/api/quiz/today');
+        // return response.data;
+        return Promise.resolve(mockQuiz);
+      }
+
+      /**
+       * Check if user has already answered today's question
+       * @param {number} userId - User ID
+       * @param {number} questionId - Question ID
+       * @returns {Promise<boolean>}
+       */
+      async function checkIfUserAlreadyAnswered(userId, questionId) {
+        // TODO: Replace with real API call
+        // const response = await axios.get(\`/api/quiz/check-answered?userId=\${userId}&questionId=\${questionId}\`);
+        // return response.data.hasAnswered;
+        return Promise.resolve(hasAnsweredToday);
+      }
+
+      /**
+       * Submit user's answer
+       * @param {number} userId - User ID
+       * @param {string} answer - Selected answer
+       * @param {number} questionId - Question ID
+       * @returns {Promise<Object>} Result with points and correctness
+       */
+      async function submitAnswer(userId, answer, questionId) {
+        // TODO: Replace with real API call
+        // const response = await axios.post('/api/quiz/submit', { userId, answer, questionId });
+        // return response.data;
+        
+        const isCorrect = answer === mockQuiz.correctAnswer;
+        const points = isCorrect ? mockQuiz.points : 0;
+        hasAnsweredToday = true;
+        
+        return Promise.resolve({
+          isCorrect,
+          points,
+          correctAnswer: mockQuiz.correctAnswer,
+          motivationalMessage: isCorrect ? MOTIVATIONAL_MESSAGES[Math.floor(Math.random() * MOTIVATIONAL_MESSAGES.length)] : null
+        });
+      }
+
+      /**
+       * Fetch weekly leaderboard
+       * @param {number} weekId - Week ID (optional)
+       * @returns {Promise<Array>} Leaderboard data
+       */
+      async function fetchWeeklyLeaderboard(weekId = null) {
+        // TODO: Replace with real API call
+        // const response = await axios.get(\`/api/quiz/leaderboard?week=\${weekId || 'current'}\`);
+        // return response.data;
+        return Promise.resolve(mockLeaderboard);
+      }
+
+      /**
+       * Update user points in leaderboard
+       * @param {number} userId - User ID
+       * @param {number} points - Points to add
+       * @returns {Promise<Object>}
+       */
+      async function updateLeaderboard(userId, points) {
+        // TODO: Replace with real API call
+        // const response = await axios.post('/api/quiz/update-points', { userId, points });
+        // return response.data;
+        return Promise.resolve({ success: true });
+      }
+
+      // ==================== UI COMPONENTS ====================
+
+      /**
+       * Display quiz question and options
+       */
+      async function displayQuiz() {
+        const container = document.getElementById('quiz-container');
+        
+        // Check if user is logged in
+        if (!isLoggedIn) {
+          container.innerHTML = \`
+            <div class="glass-card p-12 text-center rounded-2xl">
+              <i class="fas fa-lock text-6xl text-primary mb-6"></i>
+              <h3 class="text-2xl font-bold mb-4">سجل دخول علشان تشارك في الفزورة</h3>
+              <p class="text-secondary mb-6">لازم تكون مسجل دخول عشان تقدر تجاوب على الأسئلة وتكسب النقاط</p>
+              <button class="px-8 py-3 bg-gradient-to-r from-primary to-secondary rounded-xl font-bold hover:opacity-90 transition">
+                <i class="fas fa-sign-in-alt mr-2"></i>
+                تسجيل الدخول
+              </button>
+            </div>
+          \`;
+          return;
+        }
+
+        // Fetch quiz
+        const quiz = await fetchTodayQuiz();
+        const alreadyAnswered = await checkIfUserAlreadyAnswered(currentUserId, quiz.questionId);
+
+        if (alreadyAnswered) {
+          container.innerHTML = \`
+            <div class="glass-card p-12 text-center rounded-2xl">
+              <i class="fas fa-check-circle text-6xl text-green-500 mb-6"></i>
+              <h3 class="text-2xl font-bold mb-4">لقد أجبت على سؤال اليوم!</h3>
+              <p class="text-secondary">ارجع بكرة لسؤال جديد</p>
+            </div>
+          \`;
+          return;
+        }
+
+        // Display quiz
+        container.innerHTML = \`
+          <div class="glass-card p-6 rounded-2xl">
+            <div class="flex items-center justify-between mb-6">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                  <i class="fas fa-question text-primary text-xl"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm text-secondary">سؤال اليوم</h3>
+                  <p class="text-xl font-bold">+\${quiz.points} نقطة</p>
+                </div>
+              </div>
+            </div>
+
+            <h2 class="text-2xl font-bold mb-6">\${quiz.text}</h2>
+
+            <div class="space-y-3" id="quiz-options">
+              \${quiz.options.map((option, index) => \`
+                <button 
+                  class="quiz-option w-full" 
+                  data-answer="\${option}"
+                  onclick="handleAnswer('\${option}', \${quiz.questionId})">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold">
+                      \${String.fromCharCode(65 + index)}
+                    </div>
+                    <span class="text-lg">\${option}</span>
+                  </div>
+                </button>
+              \`).join('')}
+            </div>
+
+            <div id="result-container" class="mt-6"></div>
+          </div>
+        \`;
+      }
+
+      /**
+       * Handle answer selection
+       */
+      async function handleAnswer(selectedAnswer, questionId) {
+        const buttons = document.querySelectorAll('.quiz-option');
+        buttons.forEach(btn => btn.disabled = true);
+
+        const result = await submitAnswer(currentUserId, selectedAnswer, questionId);
+        
+        // Mark correct/wrong options
+        buttons.forEach(btn => {
+          const answer = btn.getAttribute('data-answer');
+          if (answer === result.correctAnswer) {
+            btn.classList.add('correct');
+            btn.innerHTML = btn.innerHTML + ' <i class="fas fa-check-circle text-green-500 mr-2"></i>';
+          } else if (answer === selectedAnswer && !result.isCorrect) {
+            btn.classList.add('wrong');
+            btn.innerHTML = btn.innerHTML + ' <i class="fas fa-times-circle text-red-500 mr-2"></i>';
+          }
+        });
+
+        // Display result
+        const resultContainer = document.getElementById('result-container');
+        if (result.isCorrect) {
+          resultContainer.innerHTML = \`
+            <div class="result-box glass-card p-6 rounded-xl border-2 border-green-500">
+              <div class="text-center">
+                <i class="fas fa-trophy text-6xl text-green-500 mb-4"></i>
+                <h3 class="text-2xl font-bold text-green-500 mb-2">🎉 إجابة صحيحة!</h3>
+                <p class="text-xl mb-4">\${result.motivationalMessage}</p>
+                <div class="inline-block px-6 py-3 bg-green-500/20 rounded-xl">
+                  <span class="text-2xl font-bold text-green-500">+\${result.points} نقطة</span>
+                </div>
+              </div>
+            </div>
+          \`;
+        } else {
+          resultContainer.innerHTML = \`
+            <div class="result-box glass-card p-6 rounded-xl border-2 border-red-500">
+              <div class="text-center">
+                <i class="fas fa-times-circle text-6xl text-red-500 mb-4"></i>
+                <h3 class="text-2xl font-bold text-red-500 mb-2">❌ إجابة خاطئة</h3>
+                <p class="text-lg text-secondary">الإجابة الصحيحة هي: <span class="text-white font-bold">\${result.correctAnswer}</span></p>
+              </div>
+            </div>
+          \`;
+        }
+
+        // Update leaderboard
+        await updateLeaderboard(currentUserId, result.points);
+        loadLeaderboard();
+      }
+
+      /**
+       * Display leaderboard
+       */
+      async function loadLeaderboard() {
+        const container = document.getElementById('leaderboard-container');
+        const leaderboard = await fetchWeeklyLeaderboard();
+
+        let html = '<div class="space-y-2">';
+        leaderboard.forEach(user => {
+          const rowClass = \`leaderboard-row p-3 rounded-lg \${
+            user.isCurrentUser ? 'current-user' : 
+            user.rank === 1 ? 'top-1' : 
+            user.rank === 2 ? 'top-2' : 
+            user.rank === 3 ? 'top-3' : ''
+          }\`;
+
+          const medal = user.rank === 1 ? '🥇' : user.rank === 2 ? '🥈' : user.rank === 3 ? '🥉' : '';
+
+          html += \`
+            <div class="\${rowClass}">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <span class="text-2xl">\${medal || user.rank}</span>
+                  <span class="font-bold">\${user.username}</span>
+                  \${user.isCurrentUser ? '<span class="text-xs px-2 py-1 bg-primary/20 rounded">أنت</span>' : ''}
+                </div>
+                <span class="font-bold text-primary">\${user.points} نقطة</span>
+              </div>
+            </div>
+          \`;
+        });
+        html += '</div>';
+
+        container.innerHTML = html;
+      }
+
+      /**
+       * Countdown timer to midnight
+       */
+      function startCountdown() {
+        function updateCountdown() {
+          const now = new Date();
+          const tomorrow = new Date(now);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(0, 0, 0, 0);
+
+          const diff = tomorrow - now;
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+          document.getElementById('countdown-timer').textContent = 
+            \`\${hours.toString().padStart(2, '0')}:\${minutes.toString().padStart(2, '0')}:\${seconds.toString().padStart(2, '0')}\`;
+
+          if (diff <= 0) {
+            // Reload page for new question
+            location.reload();
+          }
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+      }
+
+      // Initialize page
+      displayQuiz();
+      loadLeaderboard();
+      startCountdown();
+    </script>
+</body>
+</html>
+  `);
+});
+
 
 export default app;
