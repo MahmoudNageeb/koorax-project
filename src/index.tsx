@@ -98,9 +98,280 @@ app.get('/api/teams/:id/matches', async (c) => {
   }
 });
 
-// Helper function to generate enhanced header with dark mode + language toggle
+// Enhanced Header with Burger Menu + Login System + Dark Mode + Language Toggle
 function getEnhancedHeader(currentPage: string = '') {
   return `
+<style>
+/* Burger Menu Styles */
+.burger-menu {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  padding: 8px;
+}
+.burger-line {
+  width: 24px;
+  height: 3px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+.burger-menu.active .burger-line:nth-child(1) {
+  transform: rotate(45deg) translateY(10px);
+}
+.burger-menu.active .burger-line:nth-child(2) {
+  opacity: 0;
+}
+.burger-menu.active .burger-line:nth-child(3) {
+  transform: rotate(-45deg) translateY(-10px);
+}
+
+/* Mobile Menu Overlay */
+.mobile-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 999;
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+.mobile-menu-overlay.active {
+  display: block;
+}
+
+.mobile-menu {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 280px;
+  height: 100vh;
+  background: linear-gradient(135deg, rgba(30, 30, 46, 0.98) 0%, rgba(24, 24, 38, 0.98) 100%);
+  backdrop-filter: blur(20px);
+  z-index: 1000;
+  padding: 20px;
+  transition: right 0.3s ease;
+  box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+}
+.mobile-menu.active {
+  right: 0;
+}
+
+.mobile-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 20px;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+  margin-bottom: 20px;
+}
+
+.mobile-menu-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+.mobile-nav-link:hover {
+  background: rgba(102, 126, 234, 0.2);
+  transform: translateX(-5px);
+}
+.mobile-nav-link.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.mobile-menu-footer {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 2px solid rgba(102, 126, 234, 0.2);
+}
+
+/* User Profile Section */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(102, 126, 234, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.user-profile:hover {
+  background: rgba(102, 126, 234, 0.2);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #fff;
+}
+
+/* Login Modal */
+.login-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+.login-modal.active {
+  display: flex;
+}
+
+.login-modal-content {
+  background: linear-gradient(135deg, rgba(30, 30, 46, 0.98) 0%, rgba(24, 24, 38, 0.98) 100%);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 40px;
+  width: 90%;
+  max-width: 450px;
+  animation: scaleIn 0.3s ease;
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #fff;
+  font-size: 14px;
+}
+
+.form-input {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+.form-input:focus {
+  outline: none;
+  border-color: #667eea;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-primary {
+  padding: 14px 24px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 16px;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: 10px 20px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.verification-message {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(102, 126, 234, 0.2);
+  color: #fff;
+  text-align: center;
+  font-size: 14px;
+}
+
+.error-message {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  text-align: center;
+  font-size: 14px;
+}
+
+.success-message {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+  text-align: center;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .burger-menu {
+    display: flex;
+  }
+  .desktop-nav-links {
+    display: none !important;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+</style>
+
 <nav class="glass-card sticky top-0 z-50 mb-6">
   <div class="container mx-auto px-4 py-4">
     <div class="flex items-center justify-between">
@@ -110,8 +381,8 @@ function getEnhancedHeader(currentPage: string = '') {
         <h1 class="text-2xl font-black gradient-text">Koorax</h1>
       </a>
       
-      <!-- Navigation Links -->
-      <div class="flex items-center gap-2">
+      <!-- Desktop Navigation Links -->
+      <div class="desktop-nav-links flex items-center gap-2">
         <a href="/" class="nav-link ${currentPage === 'home' ? 'active' : ''}">
           <i class="fas fa-home"></i>
           <span class="hidden md:inline" data-translate="home">الرئيسية</span>
@@ -128,6 +399,22 @@ function getEnhancedHeader(currentPage: string = '') {
           <i class="fas fa-question-circle"></i>
           <span class="hidden md:inline">الفزورة</span>
         </a>
+      </div>
+
+      <!-- Right Side Controls -->
+      <div class="flex items-center gap-2">
+        <!-- User Profile / Login Button -->
+        <div id="user-section">
+          <button onclick="kooraxShowLogin()" class="header-btn" id="login-btn">
+            <i class="fas fa-user"></i>
+            <span class="hidden md:inline" data-translate="login">دخول</span>
+          </button>
+          <div onclick="kooraxToggleUserMenu()" class="user-profile" id="user-profile" style="display: none;">
+            <div class="user-avatar" id="user-avatar"></div>
+            <span class="hidden md:inline" id="user-name"></span>
+            <i class="fas fa-chevron-down text-xs"></i>
+          </div>
+        </div>
         
         <!-- Dark Mode Toggle -->
         <button onclick="kooraxToggleDarkMode()" class="header-btn" title="Toggle Dark Mode">
@@ -139,10 +426,342 @@ function getEnhancedHeader(currentPage: string = '') {
           <i class="fas fa-language"></i>
           <span class="hidden md:inline" id="lang-toggle-text">EN</span>
         </button>
+        
+        <!-- Burger Menu Button (Mobile Only) -->
+        <div class="burger-menu" onclick="kooraxToggleMobileMenu()">
+          <div class="burger-line"></div>
+          <div class="burger-line"></div>
+          <div class="burger-line"></div>
+        </div>
       </div>
     </div>
   </div>
 </nav>
+
+<!-- Mobile Menu Overlay -->
+<div class="mobile-menu-overlay" id="mobile-menu-overlay" onclick="kooraxCloseMobileMenu()"></div>
+
+<!-- Mobile Menu -->
+<div class="mobile-menu" id="mobile-menu">
+  <div class="mobile-menu-header">
+    <div class="flex items-center gap-2">
+      <i class="fas fa-futbol text-2xl gradient-text"></i>
+      <h2 class="text-xl font-black gradient-text">Koorax</h2>
+    </div>
+    <button onclick="kooraxCloseMobileMenu()" class="text-white text-2xl">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+  
+  <div class="mobile-menu-links">
+    <a href="/" class="mobile-nav-link ${currentPage === 'home' ? 'active' : ''}">
+      <i class="fas fa-home"></i>
+      <span data-translate="home">الرئيسية</span>
+    </a>
+    <a href="/matches" class="mobile-nav-link ${currentPage === 'matches' ? 'active' : ''}">
+      <i class="fas fa-calendar-alt"></i>
+      <span data-translate="matches">المباريات</span>
+    </a>
+    <a href="/competitions" class="mobile-nav-link ${currentPage === 'competitions' ? 'active' : ''}">
+      <i class="fas fa-trophy"></i>
+      <span data-translate="competitions">البطولات</span>
+    </a>
+    <a href="/quiz" class="mobile-nav-link ${currentPage === 'quiz' ? 'active' : ''}">
+      <i class="fas fa-question-circle"></i>
+      <span>الفزورة</span>
+    </a>
+  </div>
+  
+  <div class="mobile-menu-footer">
+    <div id="mobile-user-section">
+      <button onclick="kooraxShowLogin(); kooraxCloseMobileMenu();" class="btn-primary w-full" id="mobile-login-btn">
+        <i class="fas fa-user"></i>
+        <span data-translate="login">تسجيل دخول</span>
+      </button>
+      <div class="user-profile" id="mobile-user-profile" style="display: none;">
+        <div class="user-avatar" id="mobile-user-avatar"></div>
+        <span id="mobile-user-name"></span>
+      </div>
+      <button onclick="kooraxLogout(); kooraxCloseMobileMenu();" class="btn-secondary w-full mt-2" id="mobile-logout-btn" style="display: none;">
+        <i class="fas fa-sign-out-alt"></i>
+        <span data-translate="logout">تسجيل خروج</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Login Modal -->
+<div class="login-modal" id="login-modal">
+  <div class="login-modal-content">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-black gradient-text">
+        <i class="fas fa-user-circle"></i>
+        <span data-translate="login">تسجيل دخول</span>
+      </h2>
+      <button onclick="kooraxCloseLogin()" class="text-white text-2xl">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <div id="login-step-1" class="login-form">
+      <div class="form-group">
+        <label class="form-label" for="email-input">
+          <i class="fas fa-envelope"></i>
+          <span data-translate="email">البريد الإلكتروني</span>
+        </label>
+        <input type="email" id="email-input" class="form-input" placeholder="your@email.com" required>
+      </div>
+      
+      <div id="login-error" class="error-message" style="display: none;"></div>
+      
+      <button onclick="kooraxSendVerificationCode()" class="btn-primary" id="send-code-btn">
+        <i class="fas fa-paper-plane"></i>
+        <span data-translate="sendCode">إرسال رمز التحقق</span>
+      </button>
+    </div>
+    
+    <div id="login-step-2" class="login-form" style="display: none;">
+      <div class="verification-message">
+        <i class="fas fa-info-circle"></i>
+        <span data-translate="verificationSent">تم إرسال رمز التحقق إلى بريدك الإلكتروني</span>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" for="code-input">
+          <i class="fas fa-key"></i>
+          <span data-translate="verificationCode">رمز التحقق</span>
+        </label>
+        <input type="text" id="code-input" class="form-input" placeholder="123456" maxlength="6" required>
+      </div>
+      
+      <div id="verification-error" class="error-message" style="display: none;"></div>
+      
+      <button onclick="kooraxVerifyCode()" class="btn-primary" id="verify-btn">
+        <i class="fas fa-check-circle"></i>
+        <span data-translate="verify">تحقق</span>
+      </button>
+      
+      <button onclick="kooraxBackToEmail()" class="btn-secondary">
+        <i class="fas fa-arrow-right"></i>
+        <span data-translate="back">رجوع</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Mobile Menu Functions
+function kooraxToggleMobileMenu() {
+  const menu = document.getElementById('mobile-menu');
+  const overlay = document.getElementById('mobile-menu-overlay');
+  const burger = document.querySelector('.burger-menu');
+  
+  menu.classList.toggle('active');
+  overlay.classList.toggle('active');
+  burger.classList.toggle('active');
+  
+  // Prevent body scroll when menu is open
+  document.body.style.overflow = menu.classList.contains('active') ? 'hidden' : '';
+}
+
+function kooraxCloseMobileMenu() {
+  const menu = document.getElementById('mobile-menu');
+  const overlay = document.getElementById('mobile-menu-overlay');
+  const burger = document.querySelector('.burger-menu');
+  
+  menu.classList.remove('active');
+  overlay.classList.remove('active');
+  burger.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+// Login System Functions
+let currentUserEmail = '';
+let verificationCodeSent = '';
+
+function kooraxShowLogin() {
+  document.getElementById('login-modal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function kooraxCloseLogin() {
+  document.getElementById('login-modal').classList.remove('active');
+  document.body.style.overflow = '';
+  kooraxResetLoginForm();
+}
+
+function kooraxResetLoginForm() {
+  document.getElementById('login-step-1').style.display = 'block';
+  document.getElementById('login-step-2').style.display = 'none';
+  document.getElementById('email-input').value = '';
+  document.getElementById('code-input').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('verification-error').style.display = 'none';
+}
+
+async function kooraxSendVerificationCode() {
+  const email = document.getElementById('email-input').value.trim();
+  const errorDiv = document.getElementById('login-error');
+  const sendBtn = document.getElementById('send-code-btn');
+  
+  if (!email || !email.includes('@')) {
+    errorDiv.textContent = 'يرجى إدخال بريد إلكتروني صحيح';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  errorDiv.style.display = 'none';
+  sendBtn.disabled = true;
+  sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+  
+  try {
+    // TODO: Replace with actual API call
+    // const response = await axios.post('/api/auth/send-code', { email });
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Generate mock verification code (for demo)
+    verificationCodeSent = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log('Verification code (for demo):', verificationCodeSent);
+    
+    currentUserEmail = email;
+    
+    // Show step 2
+    document.getElementById('login-step-1').style.display = 'none';
+    document.getElementById('login-step-2').style.display = 'block';
+    
+  } catch (error) {
+    errorDiv.textContent = 'حدث خطأ أثناء الإرسال. حاول مرة أخرى';
+    errorDiv.style.display = 'block';
+  } finally {
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال رمز التحقق';
+  }
+}
+
+async function kooraxVerifyCode() {
+  const code = document.getElementById('code-input').value.trim();
+  const errorDiv = document.getElementById('verification-error');
+  const verifyBtn = document.getElementById('verify-btn');
+  
+  if (!code || code.length !== 6) {
+    errorDiv.textContent = 'يرجى إدخال رمز التحقق المكون من 6 أرقام';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  errorDiv.style.display = 'none';
+  verifyBtn.disabled = true;
+  verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحقق...';
+  
+  try {
+    // TODO: Replace with actual API call
+    // const response = await axios.post('/api/auth/verify-code', { email: currentUserEmail, code });
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Check code (for demo)
+    if (code === verificationCodeSent) {
+      // Generate user data
+      const userName = currentUserEmail.split('@')[0];
+      const userData = {
+        email: currentUserEmail,
+        name: userName,
+        points: 0,
+        joinedAt: new Date().toISOString()
+      };
+      
+      // Store in localStorage
+      localStorage.setItem('koorax_user', JSON.stringify(userData));
+      
+      // Update UI
+      kooraxUpdateUserUI(userData);
+      kooraxCloseLogin();
+      
+      // Show success message
+      alert('✅ تم تسجيل الدخول بنجاح!');
+      
+    } else {
+      errorDiv.textContent = 'رمز التحقق غير صحيح';
+      errorDiv.style.display = 'block';
+    }
+    
+  } catch (error) {
+    errorDiv.textContent = 'حدث خطأ أثناء التحقق. حاول مرة أخرى';
+    errorDiv.style.display = 'block';
+  } finally {
+    verifyBtn.disabled = false;
+    verifyBtn.innerHTML = '<i class="fas fa-check-circle"></i> تحقق';
+  }
+}
+
+function kooraxBackToEmail() {
+  document.getElementById('login-step-1').style.display = 'block';
+  document.getElementById('login-step-2').style.display = 'none';
+  document.getElementById('verification-error').style.display = 'none';
+}
+
+function kooraxUpdateUserUI(userData) {
+  // Desktop UI
+  document.getElementById('login-btn').style.display = 'none';
+  document.getElementById('user-profile').style.display = 'flex';
+  document.getElementById('user-name').textContent = userData.name;
+  document.getElementById('user-avatar').textContent = userData.name.charAt(0).toUpperCase();
+  
+  // Mobile UI
+  document.getElementById('mobile-login-btn').style.display = 'none';
+  document.getElementById('mobile-user-profile').style.display = 'flex';
+  document.getElementById('mobile-logout-btn').style.display = 'block';
+  document.getElementById('mobile-user-name').textContent = userData.name;
+  document.getElementById('mobile-user-avatar').textContent = userData.name.charAt(0).toUpperCase();
+}
+
+function kooraxToggleUserMenu() {
+  // TODO: Show user dropdown menu with logout option
+  if (confirm('هل تريد تسجيل الخروج؟')) {
+    kooraxLogout();
+  }
+}
+
+function kooraxLogout() {
+  localStorage.removeItem('koorax_user');
+  
+  // Desktop UI
+  document.getElementById('login-btn').style.display = 'flex';
+  document.getElementById('user-profile').style.display = 'none';
+  
+  // Mobile UI
+  document.getElementById('mobile-login-btn').style.display = 'block';
+  document.getElementById('mobile-user-profile').style.display = 'none';
+  document.getElementById('mobile-logout-btn').style.display = 'none';
+  
+  alert('تم تسجيل الخروج بنجاح');
+  window.location.reload();
+}
+
+// Check if user is logged in on page load
+function kooraxCheckAuth() {
+  const userData = localStorage.getItem('koorax_user');
+  if (userData) {
+    try {
+      const user = JSON.parse(userData);
+      kooraxUpdateUserUI(user);
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      localStorage.removeItem('koorax_user');
+    }
+  }
+}
+
+// Initialize auth check on page load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', kooraxCheckAuth);
+} else {
+  kooraxCheckAuth();
+}
+</script>
   `;
 }
 

@@ -115,7 +115,17 @@ const TRANSLATIONS = {
     lightMode: 'الوضع الفاتح',
     language: 'اللغة',
     arabic: 'عربي',
-    english: 'English'
+    english: 'English',
+    
+    // Login & Auth
+    login: 'تسجيل دخول',
+    logout: 'تسجيل خروج',
+    email: 'البريد الإلكتروني',
+    sendCode: 'إرسال رمز التحقق',
+    verificationSent: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
+    verificationCode: 'رمز التحقق',
+    verify: 'تحقق',
+    back: 'رجوع'
   },
   en: {
     // Navigation
@@ -207,7 +217,17 @@ const TRANSLATIONS = {
     lightMode: 'Light Mode',
     language: 'Language',
     arabic: 'عربي',
-    english: 'English'
+    english: 'English',
+    
+    // Login & Auth
+    login: 'Sign In',
+    logout: 'Sign Out',
+    email: 'Email Address',
+    sendCode: 'Send Verification Code',
+    verificationSent: 'Verification code sent to your email',
+    verificationCode: 'Verification Code',
+    verify: 'Verify',
+    back: 'Back'
   }
 };
 
