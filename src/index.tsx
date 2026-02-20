@@ -1700,7 +1700,8 @@ app.get('/teams/:id', (c) => {
 });
 
 
-// Quiz Page - فزورة كوراكس
+
+// Standalone Quiz Page - فزورة كوراكس (Complete with Header, Login, etc.)
 app.get('/quiz', (c) => {
   return c.html(`
 <!DOCTYPE html>
@@ -1712,8 +1713,203 @@ app.get('/quiz', (c) => {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-    <link rel="stylesheet" href="/static/koorax-enhanced.css">
     <style>
+      :root[data-theme="dark"] {
+        --primary: #7c3aed;
+        --secondary: #a855f7;
+        --bg-body: #0f172a;
+        --bg-card: #1e293b;
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
+        --border: rgba(255, 255, 255, 0.1);
+      }
+      :root[data-theme="light"] {
+        --primary: #7c3aed;
+        --secondary: #a855f7;
+        --bg-body: #f8fafc;
+        --bg-card: #ffffff;
+        --text-primary: #0f172a;
+        --text-secondary: #64748b;
+        --border: rgba(0, 0, 0, 0.1);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+        background: var(--bg-body);
+        color: var(--text-primary);
+        min-height: 100vh;
+      }
+      .glass-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--border);
+      }
+      .gradient-text {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      
+      /* Header & Navigation */
+      .header {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+      }
+      .logo {
+        font-size: 1.5rem;
+        font-weight: 800;
+        transition: transform 0.3s;
+      }
+      .logo:hover i {
+        transform: rotate(360deg);
+        transition: transform 0.7s;
+      }
+      .burger-menu {
+        display: none;
+        flex-direction: column;
+        gap: 5px;
+        cursor: pointer;
+        padding: 10px;
+      }
+      .burger-line {
+        width: 25px;
+        height: 3px;
+        background: var(--text-primary);
+        transition: all 0.3s;
+        border-radius: 2px;
+      }
+      .burger-menu.active .burger-line:nth-child(1) {
+        transform: rotate(45deg) translateY(8px);
+      }
+      .burger-menu.active .burger-line:nth-child(2) {
+        opacity: 0;
+      }
+      .burger-menu.active .burger-line:nth-child(3) {
+        transform: rotate(-45deg) translateY(-8px);
+      }
+      .nav-menu {
+        position: fixed;
+        top: 70px;
+        right: -300px;
+        width: 280px;
+        height: calc(100vh - 70px);
+        background: var(--bg-card);
+        border-left: 1px solid var(--border);
+        transition: right 0.3s ease;
+        padding: 20px;
+        overflow-y: auto;
+        box-shadow: -5px 0 20px rgba(0, 0, 0, 0.3);
+      }
+      .nav-menu.active {
+        right: 0;
+      }
+      .nav-link {
+        display: block;
+        padding: 15px 20px;
+        color: var(--text-primary);
+        text-decoration: none;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .nav-link:hover, .nav-link.active {
+        background: rgba(124, 58, 237, 0.2);
+        color: var(--primary);
+        transform: translateX(-5px);
+      }
+      .header-btn {
+        padding: 10px 15px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .header-btn:hover {
+        background: rgba(124, 58, 237, 0.2);
+        border-color: var(--primary);
+      }
+      .user-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        background: rgba(124, 58, 237, 0.1);
+        border-radius: 10px;
+        cursor: pointer;
+      }
+      
+      /* Login Modal */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s;
+      }
+      .modal.active {
+        display: flex;
+      }
+      .modal-content {
+        background: var(--bg-card);
+        padding: 30px;
+        border-radius: 20px;
+        max-width: 400px;
+        width: 90%;
+        animation: slideUp 0.3s;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideUp {
+        from { transform: translateY(50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      .input-field {
+        width: 100%;
+        padding: 12px 15px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text-primary);
+        margin-bottom: 15px;
+      }
+      .btn-primary {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: opacity 0.3s;
+      }
+      .btn-primary:hover {
+        opacity: 0.9;
+      }
+      
+      /* Quiz Styles */
       .quiz-option {
         background: rgba(255, 255, 255, 0.05);
         border: 2px solid rgba(255, 255, 255, 0.1);
@@ -1751,132 +1947,334 @@ app.get('/quiz', (c) => {
         25% { transform: translateX(-10px); }
         75% { transform: translateX(10px); }
       }
-      .result-box {
-        animation: fadeInScale 0.5s ease;
+      
+      /* Motivational Popup */
+      .popup-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 3000;
+        align-items: center;
+        justify-content: center;
       }
-      @keyframes fadeInScale {
-        from {
-          opacity: 0;
-          transform: scale(0.9);
-        }
-        to {
-          opacity: 1;
-          transform: scale(1);
-        }
+      .popup-overlay.active {
+        display: flex;
+        animation: fadeIn 0.3s;
       }
+      .popup-box {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        max-width: 500px;
+        width: 90%;
+        animation: popupScale 0.5s ease;
+        box-shadow: 0 10px 50px rgba(124, 58, 237, 0.5);
+      }
+      @keyframes popupScale {
+        0% { transform: scale(0.5); opacity: 0; }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .popup-box h2 {
+        font-size: 3rem;
+        margin-bottom: 20px;
+      }
+      .popup-box p {
+        font-size: 1.5rem;
+        color: white;
+        font-weight: bold;
+      }
+      .popup-close {
+        margin-top: 20px;
+        padding: 12px 30px;
+        background: white;
+        color: var(--primary);
+        border: none;
+        border-radius: 10px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      
+      /* Leaderboard */
       .leaderboard-row {
         transition: all 0.3s ease;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
       }
       .leaderboard-row:hover {
         background: rgba(255, 255, 255, 0.05);
         transform: translateX(-5px);
       }
       .leaderboard-row.top-1 {
-        background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent);
-        border-left: 4px solid #FFD700;
+        background: linear-gradient(90deg, rgba(255, 215, 0, 0.2), transparent);
+        border-right: 4px solid #FFD700;
       }
       .leaderboard-row.top-2 {
-        background: linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent);
-        border-left: 4px solid #C0C0C0;
+        background: linear-gradient(90deg, rgba(192, 192, 192, 0.2), transparent);
+        border-right: 4px solid #C0C0C0;
       }
       .leaderboard-row.top-3 {
-        background: linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent);
-        border-left: 4px solid #CD7F32;
+        background: linear-gradient(90deg, rgba(205, 127, 50, 0.2), transparent);
+        border-right: 4px solid #CD7F32;
       }
       .leaderboard-row.current-user {
-        background: rgba(124, 58, 237, 0.1);
-        border-left: 4px solid var(--primary);
+        background: rgba(124, 58, 237, 0.2);
+        border-right: 4px solid var(--primary);
         font-weight: bold;
       }
+      
+      /* Countdown */
       .countdown-timer {
         font-family: 'Courier New', monospace;
-        font-size: 2rem;
+        font-size: 2.5rem;
         font-weight: bold;
         color: var(--primary);
+      }
+      
+      /* Responsive */
+      @media (max-width: 768px) {
+        .burger-menu {
+          display: flex;
+        }
+        .desktop-nav {
+          display: none;
+        }
+        .countdown-timer {
+          font-size: 1.8rem;
+        }
       }
     </style>
 </head>
 <body>
-    ${getEnhancedHeader('quiz')}
-    
-    <div class="container mx-auto px-4 py-6 pb-24">
+    <!-- Header -->
+    <header class="header">
+      <div class="container mx-auto px-4 py-4">
+        <div class="flex items-center justify-between">
+          <!-- Logo -->
+          <a href="/" class="logo flex items-center gap-3">
+            <i class="fas fa-futbol text-3xl gradient-text"></i>
+            <span class="gradient-text">Koorax</span>
+          </a>
+          
+          <!-- Desktop Navigation (hidden on mobile) -->
+          <div class="desktop-nav flex items-center gap-3">
+            <button id="darkModeToggle" class="header-btn">
+              <i class="fas fa-moon"></i>
+            </button>
+            <button id="langToggle" class="header-btn">
+              <i class="fas fa-language"></i>
+              <span class="ml-2">EN</span>
+            </button>
+            <div id="userSection"></div>
+          </div>
+          
+          <!-- Burger Menu (visible on mobile) -->
+          <div class="burger-menu" id="burgerMenu">
+            <div class="burger-line"></div>
+            <div class="burger-line"></div>
+            <div class="burger-line"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Side Navigation Menu -->
+      <nav class="nav-menu" id="navMenu">
+        <a href="/" class="nav-link">
+          <i class="fas fa-home"></i>
+          <span>الرئيسية</span>
+        </a>
+        <a href="/matches" class="nav-link">
+          <i class="fas fa-calendar-alt"></i>
+          <span>المباريات</span>
+        </a>
+        <a href="/competitions" class="nav-link">
+          <i class="fas fa-trophy"></i>
+          <span>البطولات</span>
+        </a>
+        <a href="/quiz" class="nav-link active">
+          <i class="fas fa-question-circle"></i>
+          <span>فزورة كوراكس</span>
+        </a>
+        <hr style="border-color: var(--border); margin: 20px 0;">
+        <button id="darkModeToggleMobile" class="nav-link" style="width: 100%;">
+          <i class="fas fa-moon"></i>
+          <span>الوضع الداكن</span>
+        </button>
+        <button id="langToggleMobile" class="nav-link" style="width: 100%;">
+          <i class="fas fa-language"></i>
+          <span>English</span>
+        </button>
+        <div id="userSectionMobile" style="margin-top: 20px;"></div>
+      </nav>
+    </header>
+
+    <!-- Login Modal -->
+    <div class="modal" id="loginModal">
+      <div class="modal-content">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-2xl font-bold gradient-text">تسجيل الدخول</h2>
+          <button onclick="closeLoginModal()" class="text-2xl">×</button>
+        </div>
+        <form id="loginForm">
+          <input type="text" id="username" class="input-field" placeholder="اسم المستخدم" required>
+          <input type="password" id="password" class="input-field" placeholder="كلمة المرور" required>
+          <button type="submit" class="btn-primary">
+            <i class="fas fa-sign-in-alt ml-2"></i>
+            دخول
+          </button>
+        </form>
+        <p class="text-center text-secondary mt-4 text-sm">
+          مجرد demo - أي اسم مستخدم وكلمة مرور تعمل
+        </p>
+      </div>
+    </div>
+
+    <!-- Motivational Popup -->
+    <div class="popup-overlay" id="motivationalPopup">
+      <div class="popup-box">
+        <h2 id="popupIcon">🎉</h2>
+        <p id="popupMessage"></p>
+        <button class="popup-close" onclick="closeMotivationalPopup()">
+          <i class="fas fa-check ml-2"></i>
+          حلو!
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-6">
         <!-- Page Title -->
         <div class="glass-card p-6 rounded-2xl mb-6">
           <h1 class="text-4xl font-black gradient-text mb-2">
-            <i class="fas fa-question-circle mr-3"></i>
+            <i class="fas fa-question-circle ml-3"></i>
             <span>فزورة كوراكس</span>
           </h1>
-          <p class="text-secondary">اختبر معلوماتك الكروية واربح النقاط!</p>
+          <p style="color: var(--text-secondary)">اختبر معلوماتك الكروية واربح النقاط!</p>
         </div>
 
         <!-- Countdown Timer -->
         <div class="glass-card p-6 rounded-2xl mb-6 text-center">
-          <p class="text-lg text-secondary mb-2">
-            <i class="fas fa-clock mr-2"></i>
+          <p class="text-lg mb-2" style="color: var(--text-secondary)">
+            <i class="fas fa-clock ml-2"></i>
             الوقت المتبقي للسؤال القادم
           </p>
-          <div id="countdown-timer" class="countdown-timer"></div>
+          <div id="countdownTimer" class="countdown-timer"></div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- Quiz Section -->
           <div class="lg:col-span-2">
-            <div id="quiz-container"></div>
+            <div id="quizContainer"></div>
           </div>
 
           <!-- Leaderboard Section -->
           <div class="lg:col-span-1">
-            <div class="glass-card p-6 rounded-2xl sticky top-6">
+            <div class="glass-card p-6 rounded-2xl">
               <h2 class="text-2xl font-bold gradient-text mb-4">
-                <i class="fas fa-trophy mr-2"></i>
+                <i class="fas fa-trophy ml-2"></i>
                 الصدارة الأسبوعية
               </h2>
-              <div id="leaderboard-container">
-                <div class="skeleton h-64"></div>
+              <div id="leaderboardContainer">
+                <div class="text-center py-8" style="color: var(--text-secondary)">
+                  جاري التحميل...
+                </div>
               </div>
             </div>
           </div>
         </div>
     </div>
-    
-    <!-- Mobile Menu Bar -->
-    <div class="mobile-menu-bar">
-      <nav>
-        <a href="/" class="mobile-menu-item">
-          <i class="fas fa-home"></i>
-          <span data-translate="home">الرئيسية</span>
-        </a>
-        <a href="/matches" class="mobile-menu-item">
-          <i class="fas fa-calendar-alt"></i>
-          <span data-translate="matches">المباريات</span>
-        </a>
-        <a href="/competitions" class="mobile-menu-item">
-          <i class="fas fa-trophy"></i>
-          <span data-translate="competitions">البطولات</span>
-        </a>
-        <a href="/quiz" class="mobile-menu-item active">
-          <i class="fas fa-question-circle"></i>
-          <span>الفزورة</span>
-        </a>
-      </nav>
-    </div>
-    
-    <script src="/static/koorax-features.js"></script>
-    <script>
-      // Mock Data - Replace with API calls
-      const MOTIVATIONAL_MESSAGES = [
-        '🔥 جامد جدًا! واضح إنك خبير كورة!',
-        '👑 أسد الفوازير!',
-        '⚽ ذكاء كروي من العيار التقيل!',
-        '🚀 استمر.. الصدارة بتنادي!',
-        '💪 أداء عالمي!',
-        '🎯 إجابة دقيقة زي ضربة جزاء رونالدو!',
-        '⚡ سرعة بديهة خيالية!',
-        '🏆 بطل الفوازير الكروية!',
-        '🌟 نجم اليوم بلا منازع!',
-        '🎖️ أداء احترافي من الطراز الأول!'
-      ];
 
+    <script>
+      // ==================== GLOBAL STATE ====================
+      const TRANSLATIONS = {
+        ar: {
+          home: 'الرئيسية',
+          matches: 'المباريات',
+          competitions: 'البطولات',
+          quiz: 'فزورة كوراكس',
+          darkMode: 'الوضع الداكن',
+          language: 'English',
+          login: 'تسجيل الدخول',
+          logout: 'تسجيل الخروج',
+          username: 'اسم المستخدم',
+          password: 'كلمة المرور',
+          loginBtn: 'دخول',
+          questionOfDay: 'سؤال اليوم',
+          points: 'نقطة',
+          correctAnswer: '🎉 إجابة صحيحة! حصلت على 10 نقاط',
+          wrongAnswer: '❌ إجابة خاطئة. الإجابة الصحيحة هي:',
+          alreadyAnswered: '✅ أنت جاوبت اليوم بالفعل! تعال بكرة لسؤال جديد!',
+          loginToPlay: 'سجل دخول علشان تشارك في الفزورة',
+          loginToPlayDesc: 'لازم تكون مسجل دخول عشان تقدر تجاوب على الأسئلة وتكسب النقاط',
+          timeRemaining: 'الوقت المتبقي للسؤال القادم',
+          weeklyLeaderboard: 'الصدارة الأسبوعية',
+          rank: 'الترتيب',
+          you: 'أنت'
+        },
+        en: {
+          home: 'Home',
+          matches: 'Matches',
+          competitions: 'Competitions',
+          quiz: 'Koorax Quiz',
+          darkMode: 'Dark Mode',
+          language: 'عربي',
+          login: 'Login',
+          logout: 'Logout',
+          username: 'Username',
+          password: 'Password',
+          loginBtn: 'Login',
+          questionOfDay: 'Question of the Day',
+          points: 'Points',
+          correctAnswer: '🎉 Correct! You earned 10 points',
+          wrongAnswer: '❌ Wrong answer. The correct answer is:',
+          alreadyAnswered: '✅ You already answered today! Come back tomorrow!',
+          loginToPlay: 'Login to participate in the quiz',
+          loginToPlayDesc: 'You need to be logged in to answer questions and earn points',
+          timeRemaining: 'Time remaining for next question',
+          weeklyLeaderboard: 'Weekly Leaderboard',
+          rank: 'Rank',
+          you: 'You'
+        }
+      };
+
+      const MOTIVATIONAL_MESSAGES = {
+        ar: [
+          '🔥 جامد جدًا! واضح إنك خبير كورة!',
+          '👑 أسد الفوازير!',
+          '⚽ ذكاء كروي من العيار التقيل!',
+          '🚀 استمر.. الصدارة بتنادي!',
+          '💪 أداء عالمي!',
+          '🎯 إجابة دقيقة زي ضربة جزاء رونالدو!',
+          '⚡ سرعة بديهة خيالية!',
+          '🏆 بطل الفوازير الكروية!',
+          '🌟 نجم اليوم بلا منازع!',
+          '🎖️ أداء احترافي من الطراز الأول!'
+        ],
+        en: [
+          '🔥 Amazing! You really know football!',
+          '👑 Quiz Champion!',
+          '⚽ Outstanding football knowledge!',
+          '🚀 Keep going.. the leaderboard awaits!',
+          '💪 World-class performance!',
+          '🎯 Accurate like a Ronaldo penalty!',
+          '⚡ Lightning-fast thinking!',
+          '🏆 Football Quiz Master!',
+          '🌟 Star of the day!',
+          '🎖️ Professional-level performance!'
+        ]
+      };
+
+      let currentLang = 'ar';
+      let currentTheme = 'dark';
+      let currentUser = null;
+
+      // Mock data
       const mockQuiz = {
         questionId: 1,
         text: 'من هو الهداف التاريخي لدوري أبطال أوروبا؟',
@@ -1889,55 +2287,35 @@ app.get('/quiz', (c) => {
         { rank: 1, username: 'Mahmoud_10', points: 150, isCurrentUser: false },
         { rank: 2, username: 'Ahmed_Ahmed', points: 140, isCurrentUser: false },
         { rank: 3, username: 'Salah_Fan', points: 130, isCurrentUser: false },
-        { rank: 4, username: 'Mohamed_CR7', points: 120, isCurrentUser: true },
-        { rank: 5, username: 'Ali_Barca', points: 110, isCurrentUser: false },
-        { rank: 6, username: 'Hassan_LFC', points: 100, isCurrentUser: false },
-        { rank: 7, username: 'Youssef_RM', points: 90, isCurrentUser: false },
-        { rank: 8, username: 'Omar_Bayern', points: 80, isCurrentUser: false },
-        { rank: 9, username: 'Khaled_MC', points: 70, isCurrentUser: false },
-        { rank: 10, username: 'Tamer_PSG', points: 60, isCurrentUser: false }
+        { rank: 4, username: 'Ali_Barca', points: 110, isCurrentUser: false },
+        { rank: 5, username: 'Hassan_LFC', points: 100, isCurrentUser: false },
+        { rank: 6, username: 'Youssef_RM', points: 90, isCurrentUser: false },
+        { rank: 7, username: 'Omar_Bayern', points: 80, isCurrentUser: false },
+        { rank: 8, username: 'Khaled_MC', points: 70, isCurrentUser: false },
+        { rank: 9, username: 'Tamer_PSG', points: 60, isCurrentUser: false },
+        { rank: 10, username: 'Karim_Juve', points: 50, isCurrentUser: false }
       ];
 
-      // User state - Replace with real auth system
-      let isLoggedIn = true; // Change to false to test login prompt
-      let currentUserId = 4; // Mock user ID
       let hasAnsweredToday = false;
 
-      // ==================== FUTURE BACKEND FUNCTIONS ====================
+      // ==================== BACKEND FUNCTIONS ====================
       
-      /**
-       * Fetch today's quiz question
-       * @returns {Promise<Object>} Quiz data
-       */
       async function fetchTodayQuiz() {
-        // TODO: Replace with real API call
+        // TODO: Replace with real API
         // const response = await axios.get('/api/quiz/today');
         // return response.data;
         return Promise.resolve(mockQuiz);
       }
 
-      /**
-       * Check if user has already answered today's question
-       * @param {number} userId - User ID
-       * @param {number} questionId - Question ID
-       * @returns {Promise<boolean>}
-       */
       async function checkIfUserAlreadyAnswered(userId, questionId) {
-        // TODO: Replace with real API call
+        // TODO: Replace with real API
         // const response = await axios.get(\`/api/quiz/check-answered?userId=\${userId}&questionId=\${questionId}\`);
         // return response.data.hasAnswered;
         return Promise.resolve(hasAnsweredToday);
       }
 
-      /**
-       * Submit user's answer
-       * @param {number} userId - User ID
-       * @param {string} answer - Selected answer
-       * @param {number} questionId - Question ID
-       * @returns {Promise<Object>} Result with points and correctness
-       */
       async function submitAnswer(userId, answer, questionId) {
-        // TODO: Replace with real API call
+        // TODO: Replace with real API
         // const response = await axios.post('/api/quiz/submit', { userId, answer, questionId });
         // return response.data;
         
@@ -1948,100 +2326,202 @@ app.get('/quiz', (c) => {
         return Promise.resolve({
           isCorrect,
           points,
-          correctAnswer: mockQuiz.correctAnswer,
-          motivationalMessage: isCorrect ? MOTIVATIONAL_MESSAGES[Math.floor(Math.random() * MOTIVATIONAL_MESSAGES.length)] : null
+          correctAnswer: mockQuiz.correctAnswer
         });
       }
 
-      /**
-       * Fetch weekly leaderboard
-       * @param {number} weekId - Week ID (optional)
-       * @returns {Promise<Array>} Leaderboard data
-       */
       async function fetchWeeklyLeaderboard(weekId = null) {
-        // TODO: Replace with real API call
+        // TODO: Replace with real API
         // const response = await axios.get(\`/api/quiz/leaderboard?week=\${weekId || 'current'}\`);
         // return response.data;
-        return Promise.resolve(mockLeaderboard);
+        
+        const leaderboard = [...mockLeaderboard];
+        if (currentUser) {
+          leaderboard.forEach(item => {
+            item.isCurrentUser = item.username === currentUser.username;
+          });
+        }
+        return Promise.resolve(leaderboard);
       }
 
-      /**
-       * Update user points in leaderboard
-       * @param {number} userId - User ID
-       * @param {number} points - Points to add
-       * @returns {Promise<Object>}
-       */
       async function updateLeaderboard(userId, points) {
-        // TODO: Replace with real API call
+        // TODO: Replace with real API
         // const response = await axios.post('/api/quiz/update-points', { userId, points });
         // return response.data;
         return Promise.resolve({ success: true });
       }
 
-      // ==================== UI COMPONENTS ====================
+      // ==================== UI FUNCTIONS ====================
+      
+      function t(key) {
+        return TRANSLATIONS[currentLang][key] || key;
+      }
 
-      /**
-       * Display quiz question and options
-       */
-      async function displayQuiz() {
-        const container = document.getElementById('quiz-container');
+      function toggleBurgerMenu() {
+        document.getElementById('burgerMenu').classList.toggle('active');
+        document.getElementById('navMenu').classList.toggle('active');
+      }
+
+      function openLoginModal() {
+        document.getElementById('loginModal').classList.add('active');
+      }
+
+      function closeLoginModal() {
+        document.getElementById('loginModal').classList.remove('active');
+      }
+
+      function showMotivationalPopup() {
+        const messages = MOTIVATIONAL_MESSAGES[currentLang];
+        const message = messages[Math.floor(Math.random() * messages.length)];
+        document.getElementById('popupMessage').textContent = message;
+        document.getElementById('motivationalPopup').classList.add('active');
+      }
+
+      function closeMotivationalPopup() {
+        document.getElementById('motivationalPopup').classList.remove('active');
+      }
+
+      function updateUserSection() {
+        const desktopSection = document.getElementById('userSection');
+        const mobileSection = document.getElementById('userSectionMobile');
         
-        // Check if user is logged in
-        if (!isLoggedIn) {
+        if (currentUser) {
+          const userHTML = \`
+            <div class="user-info">
+              <i class="fas fa-user-circle"></i>
+              <span>\${currentUser.username}</span>
+            </div>
+            <button onclick="logout()" class="header-btn">
+              <i class="fas fa-sign-out-alt"></i>
+              <span class="ml-2">\${t('logout')}</span>
+            </button>
+          \`;
+          desktopSection.innerHTML = userHTML;
+          mobileSection.innerHTML = \`
+            <div class="nav-link">
+              <i class="fas fa-user-circle"></i>
+              <span>\${currentUser.username}</span>
+            </div>
+            <button onclick="logout()" class="nav-link" style="width: 100%;">
+              <i class="fas fa-sign-out-alt"></i>
+              <span>\${t('logout')}</span>
+            </button>
+          \`;
+        } else {
+          const loginHTML = \`
+            <button onclick="openLoginModal()" class="header-btn">
+              <i class="fas fa-sign-in-alt"></i>
+              <span class="ml-2">\${t('login')}</span>
+            </button>
+          \`;
+          desktopSection.innerHTML = loginHTML;
+          mobileSection.innerHTML = \`
+            <button onclick="openLoginModal()" class="nav-link" style="width: 100%;">
+              <i class="fas fa-sign-in-alt"></i>
+              <span>\${t('login')}</span>
+            </button>
+          \`;
+        }
+      }
+
+      function login(username) {
+        currentUser = { username, userId: Date.now() };
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        closeLoginModal();
+        updateUserSection();
+        displayQuiz();
+        loadLeaderboard();
+      }
+
+      function logout() {
+        currentUser = null;
+        localStorage.removeItem('currentUser');
+        updateUserSection();
+        displayQuiz();
+        loadLeaderboard();
+      }
+
+      function toggleDarkMode() {
+        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        localStorage.setItem('theme', currentTheme);
+        
+        const icon = currentTheme === 'dark' ? 'fa-moon' : 'fa-sun';
+        document.querySelectorAll('#darkModeToggle i, #darkModeToggleMobile i').forEach(el => {
+          el.className = \`fas \${icon}\`;
+        });
+      }
+
+      function toggleLanguage() {
+        currentLang = currentLang === 'ar' ? 'en' : 'ar';
+        document.documentElement.lang = currentLang;
+        document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+        localStorage.setItem('lang', currentLang);
+        
+        document.querySelectorAll('#langToggle span, #langToggleMobile span').forEach(el => {
+          el.textContent = t('language');
+        });
+        
+        updateUserSection();
+        displayQuiz();
+        loadLeaderboard();
+      }
+
+      async function displayQuiz() {
+        const container = document.getElementById('quizContainer');
+        
+        if (!currentUser) {
           container.innerHTML = \`
             <div class="glass-card p-12 text-center rounded-2xl">
-              <i class="fas fa-lock text-6xl text-primary mb-6"></i>
-              <h3 class="text-2xl font-bold mb-4">سجل دخول علشان تشارك في الفزورة</h3>
-              <p class="text-secondary mb-6">لازم تكون مسجل دخول عشان تقدر تجاوب على الأسئلة وتكسب النقاط</p>
-              <button class="px-8 py-3 bg-gradient-to-r from-primary to-secondary rounded-xl font-bold hover:opacity-90 transition">
-                <i class="fas fa-sign-in-alt mr-2"></i>
-                تسجيل الدخول
+              <i class="fas fa-lock text-6xl mb-6" style="color: var(--primary)"></i>
+              <h3 class="text-2xl font-bold mb-4">\${t('loginToPlay')}</h3>
+              <p class="mb-6" style="color: var(--text-secondary)">\${t('loginToPlayDesc')}</p>
+              <button onclick="openLoginModal()" class="btn-primary" style="max-width: 300px; margin: 0 auto;">
+                <i class="fas fa-sign-in-alt ml-2"></i>
+                \${t('login')}
               </button>
             </div>
           \`;
           return;
         }
 
-        // Fetch quiz
         const quiz = await fetchTodayQuiz();
-        const alreadyAnswered = await checkIfUserAlreadyAnswered(currentUserId, quiz.questionId);
+        const alreadyAnswered = await checkIfUserAlreadyAnswered(currentUser.userId, quiz.questionId);
 
         if (alreadyAnswered) {
           container.innerHTML = \`
             <div class="glass-card p-12 text-center rounded-2xl">
               <i class="fas fa-check-circle text-6xl text-green-500 mb-6"></i>
-              <h3 class="text-2xl font-bold mb-4">لقد أجبت على سؤال اليوم!</h3>
-              <p class="text-secondary">ارجع بكرة لسؤال جديد</p>
+              <h3 class="text-2xl font-bold mb-4">\${t('alreadyAnswered')}</h3>
             </div>
           \`;
           return;
         }
 
-        // Display quiz
         container.innerHTML = \`
           <div class="glass-card p-6 rounded-2xl">
             <div class="flex items-center justify-between mb-6">
               <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                  <i class="fas fa-question text-primary text-xl"></i>
+                <div class="w-12 h-12 rounded-full flex items-center justify-center" style="background: rgba(124, 58, 237, 0.2)">
+                  <i class="fas fa-question" style="color: var(--primary); font-size: 1.5rem"></i>
                 </div>
                 <div>
-                  <h3 class="text-sm text-secondary">سؤال اليوم</h3>
-                  <p class="text-xl font-bold">+\${quiz.points} نقطة</p>
+                  <h3 class="text-sm" style="color: var(--text-secondary)">\${t('questionOfDay')}</h3>
+                  <p class="text-xl font-bold">+\${quiz.points} \${t('points')}</p>
                 </div>
               </div>
             </div>
 
             <h2 class="text-2xl font-bold mb-6">\${quiz.text}</h2>
 
-            <div class="space-y-3" id="quiz-options">
+            <div class="space-y-3" id="quizOptions">
               \${quiz.options.map((option, index) => \`
                 <button 
                   class="quiz-option w-full" 
                   data-answer="\${option}"
                   onclick="handleAnswer('\${option}', \${quiz.questionId})">
                   <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold" style="background: rgba(255, 255, 255, 0.1)">
                       \${String.fromCharCode(65 + index)}
                     </div>
                     <span class="text-lg">\${option}</span>
@@ -2050,21 +2530,17 @@ app.get('/quiz', (c) => {
               \`).join('')}
             </div>
 
-            <div id="result-container" class="mt-6"></div>
+            <div id="resultContainer" class="mt-6"></div>
           </div>
         \`;
       }
 
-      /**
-       * Handle answer selection
-       */
       async function handleAnswer(selectedAnswer, questionId) {
         const buttons = document.querySelectorAll('.quiz-option');
         buttons.forEach(btn => btn.disabled = true);
 
-        const result = await submitAnswer(currentUserId, selectedAnswer, questionId);
+        const result = await submitAnswer(currentUser.userId, selectedAnswer, questionId);
         
-        // Mark correct/wrong options
         buttons.forEach(btn => {
           const answer = btn.getAttribute('data-answer');
           if (answer === result.correctAnswer) {
@@ -2076,48 +2552,45 @@ app.get('/quiz', (c) => {
           }
         });
 
-        // Display result
-        const resultContainer = document.getElementById('result-container');
+        const resultContainer = document.getElementById('resultContainer');
         if (result.isCorrect) {
           resultContainer.innerHTML = \`
-            <div class="result-box glass-card p-6 rounded-xl border-2 border-green-500">
+            <div class="glass-card p-6 rounded-xl border-2" style="border-color: #10b981; animation: fadeInScale 0.5s;">
               <div class="text-center">
                 <i class="fas fa-trophy text-6xl text-green-500 mb-4"></i>
-                <h3 class="text-2xl font-bold text-green-500 mb-2">🎉 إجابة صحيحة!</h3>
-                <p class="text-xl mb-4">\${result.motivationalMessage}</p>
-                <div class="inline-block px-6 py-3 bg-green-500/20 rounded-xl">
-                  <span class="text-2xl font-bold text-green-500">+\${result.points} نقطة</span>
+                <h3 class="text-2xl font-bold text-green-500 mb-2">\${t('correctAnswer')}</h3>
+                <div class="inline-block px-6 py-3 rounded-xl" style="background: rgba(16, 185, 129, 0.2)">
+                  <span class="text-2xl font-bold text-green-500">+\${result.points} \${t('points')}</span>
                 </div>
               </div>
             </div>
           \`;
+          showMotivationalPopup();
         } else {
           resultContainer.innerHTML = \`
-            <div class="result-box glass-card p-6 rounded-xl border-2 border-red-500">
+            <div class="glass-card p-6 rounded-xl border-2" style="border-color: #ef4444; animation: fadeInScale 0.5s;">
               <div class="text-center">
                 <i class="fas fa-times-circle text-6xl text-red-500 mb-4"></i>
-                <h3 class="text-2xl font-bold text-red-500 mb-2">❌ إجابة خاطئة</h3>
-                <p class="text-lg text-secondary">الإجابة الصحيحة هي: <span class="text-white font-bold">\${result.correctAnswer}</span></p>
+                <h3 class="text-2xl font-bold text-red-500 mb-2">\${t('wrongAnswer')}</h3>
+                <p class="text-lg" style="color: var(--text-secondary)">
+                  <span class="text-white font-bold">\${result.correctAnswer}</span>
+                </p>
               </div>
             </div>
           \`;
         }
 
-        // Update leaderboard
-        await updateLeaderboard(currentUserId, result.points);
+        await updateLeaderboard(currentUser.userId, result.points);
         loadLeaderboard();
       }
 
-      /**
-       * Display leaderboard
-       */
       async function loadLeaderboard() {
-        const container = document.getElementById('leaderboard-container');
+        const container = document.getElementById('leaderboardContainer');
         const leaderboard = await fetchWeeklyLeaderboard();
 
         let html = '<div class="space-y-2">';
         leaderboard.forEach(user => {
-          const rowClass = \`leaderboard-row p-3 rounded-lg \${
+          const rowClass = \`leaderboard-row \${
             user.isCurrentUser ? 'current-user' : 
             user.rank === 1 ? 'top-1' : 
             user.rank === 2 ? 'top-2' : 
@@ -2132,9 +2605,9 @@ app.get('/quiz', (c) => {
                 <div class="flex items-center gap-3">
                   <span class="text-2xl">\${medal || user.rank}</span>
                   <span class="font-bold">\${user.username}</span>
-                  \${user.isCurrentUser ? '<span class="text-xs px-2 py-1 bg-primary/20 rounded">أنت</span>' : ''}
+                  \${user.isCurrentUser ? \`<span class="text-xs px-2 py-1 rounded" style="background: rgba(124, 58, 237, 0.2)">\${t('you')}</span>\` : ''}
                 </div>
-                <span class="font-bold text-primary">\${user.points} نقطة</span>
+                <span class="font-bold" style="color: var(--primary)">\${user.points} \${t('points')}</span>
               </div>
             </div>
           \`;
@@ -2144,9 +2617,6 @@ app.get('/quiz', (c) => {
         container.innerHTML = html;
       }
 
-      /**
-       * Countdown timer to midnight
-       */
       function startCountdown() {
         function updateCountdown() {
           const now = new Date();
@@ -2159,11 +2629,10 @@ app.get('/quiz', (c) => {
           const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
           const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-          document.getElementById('countdown-timer').textContent = 
+          document.getElementById('countdownTimer').textContent = 
             \`\${hours.toString().padStart(2, '0')}:\${minutes.toString().padStart(2, '0')}:\${seconds.toString().padStart(2, '0')}\`;
 
           if (diff <= 0) {
-            // Reload page for new question
             location.reload();
           }
         }
@@ -2172,7 +2641,46 @@ app.get('/quiz', (c) => {
         setInterval(updateCountdown, 1000);
       }
 
-      // Initialize page
+      // ==================== EVENT LISTENERS ====================
+      
+      document.getElementById('burgerMenu').addEventListener('click', toggleBurgerMenu);
+      document.getElementById('darkModeToggle').addEventListener('click', toggleDarkMode);
+      document.getElementById('darkModeToggleMobile').addEventListener('click', toggleDarkMode);
+      document.getElementById('langToggle').addEventListener('click', toggleLanguage);
+      document.getElementById('langToggleMobile').addEventListener('click', toggleLanguage);
+      
+      document.getElementById('loginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        login(username);
+      });
+
+      // Close modal on outside click
+      document.getElementById('loginModal').addEventListener('click', (e) => {
+        if (e.target.id === 'loginModal') {
+          closeLoginModal();
+        }
+      });
+
+      // ==================== INITIALIZATION ====================
+      
+      // Load saved settings
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      const savedLang = localStorage.getItem('lang') || 'ar';
+      const savedUser = localStorage.getItem('currentUser');
+
+      currentTheme = savedTheme;
+      currentLang = savedLang;
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+      }
+
+      document.documentElement.setAttribute('data-theme', currentTheme);
+      document.documentElement.lang = currentLang;
+      document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+
+      // Initialize
+      updateUserSection();
       displayQuiz();
       loadLeaderboard();
       startCountdown();
@@ -2181,6 +2689,5 @@ app.get('/quiz', (c) => {
 </html>
   `);
 });
-
 
 export default app;
