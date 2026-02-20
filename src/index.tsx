@@ -297,7 +297,8 @@ app.get('/', (c) => {
   `);
 });
 
-// Matches page - Complete with all filters + Mobile Menu
+
+// Matches page - Complete with Date Filter + Competition Grouping + Mobile Menu
 app.get('/matches', (c) => {
   return c.html(`
 <!DOCTYPE html>
@@ -310,6 +311,53 @@ app.get('/matches', (c) => {
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <link rel="stylesheet" href="/static/koorax-enhanced.css">
+    <style>
+      .date-filter-btn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        min-width: 80px;
+      }
+      .date-filter-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: var(--primary);
+        transform: translateY(-2px);
+      }
+      .date-filter-btn.active {
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        border-color: var(--primary);
+        box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
+      }
+      .date-label {
+        font-size: 0.75rem;
+        opacity: 0.8;
+      }
+      .date-number {
+        font-size: 1.25rem;
+        font-weight: bold;
+      }
+      .date-filter-container {
+        display: flex;
+        gap: 0.5rem;
+        overflow-x: auto;
+        padding: 0.5rem 0;
+        scrollbar-width: thin;
+      }
+      .date-filter-container::-webkit-scrollbar {
+        height: 4px;
+      }
+      .date-filter-container::-webkit-scrollbar-thumb {
+        background: var(--primary);
+        border-radius: 4px;
+      }
+    </style>
 </head>
 <body>
     ${getEnhancedHeader('matches')}
@@ -323,7 +371,18 @@ app.get('/matches', (c) => {
           </h1>
         </div>
 
-        <!-- Filters -->
+        <!-- Date Filter -->
+        <div class="glass-card p-4 rounded-2xl mb-6">
+          <h3 class="text-lg font-bold mb-3">
+            <i class="fas fa-calendar-day mr-2"></i>
+            <span data-translate="selectDate">اختر اليوم</span>
+          </h3>
+          <div class="date-filter-container" id="date-filter-container">
+            <!-- Will be filled by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Status Filters -->
         <div class="glass-card p-6 rounded-2xl mb-6">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <button onclick="filterMatches('all')" class="filter-btn active" data-filter="all">
@@ -378,11 +437,63 @@ app.get('/matches', (c) => {
     <script>
       let allMatches = [];
       let currentFilter = 'all';
+      let currentDate = null;
+      
+      // Competition importance ranking
+      const competitionImportance = {
+        2001: 10, // Champions League
+        2021: 9,  // Premier League
+        2014: 8,  // La Liga
+        2019: 7,  // Serie A
+        2002: 6,  // Bundesliga
+        2015: 5,  // Ligue 1
+        2018: 4,  // European Championship
+        2000: 3,  // World Cup
+        2152: 2,  // Copa Libertadores
+      };
+
+      function generateDateButtons() {
+        const container = document.getElementById('date-filter-container');
+        const today = new Date();
+        const dates = [];
+        
+        // Generate 7 days (3 past + today + 3 future)
+        for (let i = -3; i <= 3; i++) {
+          const date = new Date(today);
+          date.setDate(today.getDate() + i);
+          dates.push(date);
+        }
+        
+        const t = window.kooraxT || (key => key);
+        const lang = document.documentElement.lang;
+        
+        container.innerHTML = dates.map(date => {
+          const dateStr = date.toISOString().split('T')[0];
+          const dayName = date.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'short' });
+          const dayNumber = date.getDate();
+          const isToday = date.toDateString() === today.toDateString();
+          
+          return \`
+            <button 
+              onclick="filterByDate('\${dateStr}')" 
+              class="date-filter-btn \${isToday ? 'active' : ''}" 
+              data-date="\${dateStr}">
+              <span class="date-label">\${dayName}</span>
+              <span class="date-number">\${dayNumber}</span>
+              \${isToday ? '<i class="fas fa-star text-yellow-400 text-xs"></i>' : ''}
+            </button>
+          \`;
+        }).join('');
+        
+        // Set today as default
+        currentDate = today.toISOString().split('T')[0];
+      }
 
       async function loadAllMatches() {
         try {
           const response = await axios.get('/api/matches');
           allMatches = response.data.matches;
+          generateDateButtons();
           displayMatches();
         } catch (error) {
           console.error('Error loading matches:', error);
@@ -390,6 +501,20 @@ app.get('/matches', (c) => {
           document.getElementById('matches-container').innerHTML = 
             \`<p class="text-center text-red-500 py-12" data-translate="error">\${t('error')}</p>\`;
         }
+      }
+
+      function filterByDate(dateStr) {
+        currentDate = dateStr;
+        
+        // Update active date button
+        document.querySelectorAll('.date-filter-btn').forEach(btn => {
+          btn.classList.remove('active');
+          if (btn.getAttribute('data-date') === dateStr) {
+            btn.classList.add('active');
+          }
+        });
+        
+        displayMatches();
       }
 
       function filterMatches(filter) {
@@ -406,15 +531,28 @@ app.get('/matches', (c) => {
         displayMatches();
       }
 
+      function getCompetitionImportance(compId) {
+        return competitionImportance[compId] || 0;
+      }
+
       function displayMatches() {
         let filtered = allMatches;
         
+        // Filter by date first
+        if (currentDate) {
+          filtered = filtered.filter(m => {
+            const matchDate = new Date(m.utcDate).toISOString().split('T')[0];
+            return matchDate === currentDate;
+          });
+        }
+        
+        // Filter by status
         if (currentFilter === 'live') {
-          filtered = allMatches.filter(m => m.status === 'IN_PLAY' || m.status === 'PAUSED');
+          filtered = filtered.filter(m => m.status === 'IN_PLAY' || m.status === 'PAUSED');
         } else if (currentFilter === 'scheduled') {
-          filtered = allMatches.filter(m => m.status === 'SCHEDULED');
+          filtered = filtered.filter(m => m.status === 'SCHEDULED');
         } else if (currentFilter === 'finished') {
-          filtered = allMatches.filter(m => m.status === 'FINISHED');
+          filtered = filtered.filter(m => m.status === 'FINISHED');
         }
         
         const t = window.kooraxT;
@@ -437,14 +575,18 @@ app.get('/matches', (c) => {
           if (!grouped[compId]) {
             grouped[compId] = {
               competition: match.competition,
-              matches: []
+              matches: [],
+              importance: getCompetitionImportance(compId)
             };
           }
           grouped[compId].matches.push(match);
         });
         
+        // Sort competitions by importance
+        const sortedGroups = Object.values(grouped).sort((a, b) => b.importance - a.importance);
+        
         let html = '';
-        Object.values(grouped).forEach(group => {
+        sortedGroups.forEach(group => {
           html += \`
             <div class="glass-card p-6 rounded-2xl mb-6">
               <h2 class="text-2xl font-bold gradient-text mb-4 flex items-center gap-3">
@@ -497,18 +639,20 @@ app.get('/matches', (c) => {
       }
       
       loadAllMatches();
+      
+      // Auto refresh
       setInterval(loadAllMatches, 60000);
       
-      window.addEventListener('language-changed', () => {
-        displayMatches();
-      });
+      // Re-render on language change
+      window.addEventListener('languageChanged', displayMatches);
     </script>
 </body>
 </html>
-  `);
-});
+  `)
+})
 
-// Match Details page - COMPLETE with all details
+
+// Match Details page - COMPLETE with scorer/assist names + cards + live minute
 app.get('/matches/:id', (c) => {
   const matchId = c.req.param('id');
   return c.html(`
@@ -523,6 +667,21 @@ app.get('/matches/:id', (c) => {
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <link rel="stylesheet" href="/static/koorax-enhanced.css">
     <style>
+      .match-time-live {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: bold;
+        animation: pulse 2s infinite;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
       .event-timeline {
         position: relative;
         padding-left: 30px;
@@ -539,18 +698,46 @@ app.get('/matches/:id', (c) => {
       .event-item {
         position: relative;
         margin-bottom: 20px;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 1rem;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+      }
+      .event-item:hover {
+        background: rgba(255, 255, 255, 0.06);
+        transform: translateX(-5px);
       }
       .event-item::before {
         content: '';
         position: absolute;
         left: -23px;
-        top: 10px;
+        top: 18px;
         width: 14px;
         height: 14px;
         border-radius: 50%;
         background: var(--primary);
         border: 3px solid var(--bg-card);
         z-index: 1;
+      }
+      .event-item.goal::before { background: #10b981; }
+      .event-item.yellow-card::before { background: #fbbf24; }
+      .event-item.red-card::before { background: #ef4444; }
+      .event-item.substitution::before { background: #3b82f6; }
+      
+      .scorer-name {
+        font-size: 1.125rem;
+        font-weight: bold;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+      }
+      .assist-name {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        font-style: italic;
+      }
+      .card-player-name {
+        font-weight: 600;
+        color: var(--text-primary);
       }
       .stat-bar {
         height: 8px;
@@ -562,6 +749,15 @@ app.get('/matches/:id', (c) => {
         height: 100%;
         background: linear-gradient(90deg, var(--primary), var(--primary-light));
         transition: width 0.5s ease;
+      }
+      .lineup-player {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+      }
+      .lineup-player:hover {
+        background: rgba(255, 255, 255, 0.06);
       }
     </style>
 </head>
@@ -608,7 +804,6 @@ app.get('/matches/:id', (c) => {
         try {
           const response = await axios.get(\`/api/matches/\${matchId}\`);
           const match = response.data;
-          
           displayMatchDetails(match);
         } catch (error) {
           console.error('Error loading match details:', error);
@@ -617,256 +812,299 @@ app.get('/matches/:id', (c) => {
             \`<p class="text-center text-red-500 py-12" data-translate="error">\${t('error')}</p>\`;
         }
       }
-      
+
       function displayMatchDetails(match) {
         const t = window.kooraxT;
         const container = document.getElementById('match-details-container');
         
-        const statusBadge = match.status === 'IN_PLAY' || match.status === 'PAUSED'
-          ? \`<span class="status-live">\${t('live')}</span>\`
-          : match.status === 'FINISHED'
-          ? \`<span class="status-finished">\${t('finished')}</span>\`
-          : \`<span class="status-scheduled">\${t('scheduled')}</span>\`;
+        const isLive = match.status === 'IN_PLAY' || match.status === 'PAUSED';
+        const isFinished = match.status === 'FINISHED';
         
-        const score = (match.status === 'FINISHED' || match.status === 'IN_PLAY' || match.status === 'PAUSED')
-          ? \`<div class="text-5xl md:text-6xl font-black gradient-text">\${match.score.fullTime.home || 0} - \${match.score.fullTime.away || 0}</div>\`
-          : \`<div class="text-xl md:text-2xl text-secondary">\${new Date(match.utcDate).toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit'})}</div>\`;
-        
-        let html = \`
-          <!-- Match Header -->
-          <div class="glass-card p-4 md:p-8 rounded-2xl mb-6">
-            <div class="text-center mb-6">
-              <div class="flex items-center justify-center gap-3 mb-4">
-                \${match.competition.emblem ? \`<img src="\${match.competition.emblem}" class="w-8 h-8 md:w-12 md:h-12" onerror="this.style.display='none'">\` : ''}
-                <h2 class="text-lg md:text-xl font-bold">\${match.competition.name}</h2>
-              </div>
-              \${statusBadge}
+        // Status badge with live minute
+        let statusHtml = '';
+        if (isLive) {
+          const minute = match.minute || '0';
+          statusHtml = \`
+            <div class="match-time-live">
+              <i class="fas fa-circle animate-ping"></i>
+              \${t('live')} - \${minute}'
             </div>
-            
-            <div class="grid grid-cols-3 gap-2 md:gap-8 items-center mb-6">
+          \`;
+        } else if (isFinished) {
+          statusHtml = \`<span class="status-finished">\${t('finished')}</span>\`;
+        } else {
+          statusHtml = \`<span class="status-scheduled">\${t('scheduled')}</span>\`;
+        }
+
+        // Competition info
+        const compHtml = \`
+          <div class="glass-card p-4 rounded-2xl mb-6">
+            <div class="flex items-center gap-3">
+              \${match.competition.emblem ? \`<img src="\${match.competition.emblem}" class="w-8 h-8">\` : ''}
+              <h2 class="text-lg font-bold">\${match.competition.name}</h2>
+            </div>
+          </div>
+        \`;
+
+        // Teams and Score
+        const scoreHtml = (isFinished || isLive)
+          ? \`
+            <div class="text-center">
+              <div class="text-5xl md:text-7xl font-black gradient-text mb-2">
+                \${match.score.fullTime.home || 0} - \${match.score.fullTime.away || 0}
+              </div>
+              \${match.score.halfTime ? \`
+                <div class="text-lg text-secondary">
+                  (\${match.score.halfTime.home || 0} - \${match.score.halfTime.away || 0})
+                  <span class="text-sm">\${t('halfTime') || 'الشوط الأول'}</span>
+                </div>
+              \` : ''}
+            </div>
+          \`
+          : \`
+            <div class="text-center text-2xl text-secondary">
+              \${new Date(match.utcDate).toLocaleString(t('language') === 'ar' ? 'ar-EG' : 'en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </div>
+          \`;
+
+        const teamsHtml = \`
+          <div class="glass-card p-6 md:p-8 rounded-2xl mb-6">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
               <!-- Home Team -->
-              <div class="text-center">
-                <img src="\${match.homeTeam.crest || ''}" alt="\${match.homeTeam.name}" class="w-16 h-16 md:w-24 md:h-24 mx-auto mb-2 md:mb-4" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E⚽%3C/text%3E%3C/svg%3E'">
-                <h3 class="text-base md:text-2xl font-bold truncate">\${match.homeTeam.name}</h3>
+              <div class="flex flex-col items-center flex-1 text-center">
+                <img src="\${match.homeTeam.crest}" alt="\${match.homeTeam.name}" 
+                     class="w-20 h-20 md:w-32 md:h-32 mb-4">
+                <h3 class="text-xl md:text-2xl font-bold">\${match.homeTeam.name}</h3>
               </div>
               
               <!-- Score -->
-              <div class="text-center">
-                \${score}
-                <p class="text-xs md:text-sm text-secondary mt-2">\${new Date(match.utcDate).toLocaleString('ar-EG', {dateStyle: 'short', timeStyle: 'short'})}</p>
+              <div class="flex flex-col items-center gap-4">
+                \${statusHtml}
+                \${scoreHtml}
               </div>
               
               <!-- Away Team -->
-              <div class="text-center">
-                <img src="\${match.awayTeam.crest || ''}" alt="\${match.awayTeam.name}" class="w-16 h-16 md:w-24 md:h-24 mx-auto mb-2 md:mb-4" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E⚽%3C/text%3E%3C/svg%3E'">
-                <h3 class="text-base md:text-2xl font-bold truncate">\${match.awayTeam.name}</h3>
+              <div class="flex flex-col items-center flex-1 text-center">
+                <img src="\${match.awayTeam.crest}" alt="\${match.awayTeam.name}" 
+                     class="w-20 h-20 md:w-32 md:h-32 mb-4">
+                <h3 class="text-xl md:text-2xl font-bold">\${match.awayTeam.name}</h3>
               </div>
             </div>
-            
-            <!-- Half-time Score -->
-            \${match.score && match.score.halfTime ? \`
-              <div class="text-center py-3 mb-6 border-t border-b border-white/10">
-                <p class="text-sm text-secondary mb-1">\${t('halfTime') || 'الشوط الأول'}</p>
-                <p class="text-2xl font-bold text-primary">\${match.score.halfTime.home || 0} - \${match.score.halfTime.away || 0}</p>
-              </div>
-            \` : ''}
-            
-            <!-- Match Info -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-white/10">
+          </div>
+        \`;
+
+        // Match Info
+        const matchInfoHtml = \`
+          <div class="glass-card p-6 rounded-2xl mb-6">
+            <h3 class="text-xl font-bold mb-4">
+              <i class="fas fa-info-circle mr-2"></i>
+              \${t('matchInfo') || 'معلومات المباراة'}
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               \${match.venue ? \`
-                <div class="text-center p-3 bg-white/5 rounded-lg">
-                  <i class="fas fa-map-marker-alt text-primary mb-2 text-xl"></i>
-                  <p class="text-xs text-secondary" data-translate="venue">\${t('venue')}</p>
-                  <p class="font-bold text-sm">\${match.venue}</p>
+                <div class="flex items-center gap-2">
+                  <i class="fas fa-map-marker-alt text-primary"></i>
+                  <span>\${match.venue}</span>
                 </div>
               \` : ''}
-              \${match.referees && match.referees.length > 0 ? \`
-                <div class="text-center p-3 bg-white/5 rounded-lg">
-                  <i class="fas fa-user-tie text-primary mb-2 text-xl"></i>
-                  <p class="text-xs text-secondary" data-translate="referee">\${t('referee')}</p>
-                  <p class="font-bold text-sm">\${match.referees[0].name}</p>
+              \${match.referee ? \`
+                <div class="flex items-center gap-2">
+                  <i class="fas fa-user-tie text-primary"></i>
+                  <span>\${match.referee}</span>
                 </div>
               \` : ''}
               \${match.attendance ? \`
-                <div class="text-center p-3 bg-white/5 rounded-lg">
-                  <i class="fas fa-users text-primary mb-2 text-xl"></i>
-                  <p class="text-xs text-secondary" data-translate="attendance">\${t('attendance')}</p>
-                  <p class="font-bold text-sm">\${match.attendance.toLocaleString()}</p>
+                <div class="flex items-center gap-2">
+                  <i class="fas fa-users text-primary"></i>
+                  <span>\${match.attendance.toLocaleString()}</span>
                 </div>
               \` : ''}
             </div>
           </div>
         \`;
-        
-        // ALL EVENTS TIMELINE - Goals, Cards, Substitutions
-        const allEvents = [];
-        
-        // Add Goals
+
+        // Events Timeline
+        let eventsHtml = '';
         if (match.goals && match.goals.length > 0) {
+          const allEvents = [];
+          
+          // Add goals
           match.goals.forEach(goal => {
             allEvents.push({
-              minute: goal.minute,
               type: 'goal',
-              player: goal.scorer.name,
+              minute: goal.minute,
               team: goal.team.name,
-              teamId: goal.team.id,
-              assist: goal.assist ? goal.assist.name : null,
+              player: goal.scorer?.name || t('unknown'),
+              assist: goal.assist?.name,
               icon: 'fa-futbol',
-              color: 'text-primary'
+              color: '#10b981'
             });
           });
-        }
-        
-        // Add Bookings (Yellow/Red Cards)
-        if (match.bookings && match.bookings.length > 0) {
-          match.bookings.forEach(booking => {
-            allEvents.push({
-              minute: booking.minute,
-              type: booking.card === 'YELLOW_CARD' ? 'yellow' : 'red',
-              player: booking.player.name,
-              team: booking.team.name,
-              teamId: booking.team.id,
-              icon: 'fa-square',
-              color: booking.card === 'YELLOW_CARD' ? 'text-yellow-500' : 'text-red-500'
+          
+          // Add bookings (cards)
+          if (match.bookings && match.bookings.length > 0) {
+            match.bookings.forEach(booking => {
+              allEvents.push({
+                type: booking.card === 'YELLOW_CARD' ? 'yellow-card' : 'red-card',
+                minute: booking.minute,
+                team: booking.team.name,
+                player: booking.player?.name || t('unknown'),
+                card: booking.card,
+                icon: booking.card === 'YELLOW_CARD' ? 'fa-square' : 'fa-square',
+                color: booking.card === 'YELLOW_CARD' ? '#fbbf24' : '#ef4444'
+              });
             });
-          });
-        }
-        
-        // Add Substitutions
-        if (match.substitutions && match.substitutions.length > 0) {
-          match.substitutions.forEach(sub => {
-            allEvents.push({
-              minute: sub.minute,
-              type: 'substitution',
-              playerOut: sub.playerOut.name,
-              playerIn: sub.playerIn.name,
-              team: sub.team.name,
-              teamId: sub.team.id,
-              icon: 'fa-exchange-alt',
-              color: 'text-blue-500'
+          }
+          
+          // Add substitutions
+          if (match.substitutions && match.substitutions.length > 0) {
+            match.substitutions.forEach(sub => {
+              allEvents.push({
+                type: 'substitution',
+                minute: sub.minute,
+                team: sub.team.name,
+                playerOut: sub.playerOut?.name || t('unknown'),
+                playerIn: sub.playerIn?.name || t('unknown'),
+                icon: 'fa-exchange-alt',
+                color: '#3b82f6'
+              });
             });
-          });
-        }
-        
-        // Sort by minute
-        allEvents.sort((a, b) => a.minute - b.minute);
-        
-        // Display Events Timeline
-        if (allEvents.length > 0) {
-          html += \`
-            <div class="glass-card p-4 md:p-6 rounded-2xl mb-6">
-              <h3 class="text-xl md:text-2xl font-bold gradient-text mb-6">
-                <i class="fas fa-list-ul mr-3"></i>
-                <span data-translate="events">\${t('events') || 'الأحداث'}</span>
-              </h3>
-              <div class="event-timeline">
-                \${allEvents.map(event => {
-                  const isHome = event.teamId === match.homeTeam.id;
-                  
-                  if (event.type === 'goal') {
-                    return \`
-                      <div class="event-item">
-                        <div class="glass-card p-4 rounded-xl hover:scale-[1.02] transition-transform">
-                          <div class="flex items-center justify-between gap-4">
-                            <div class="flex items-center gap-3 flex-1">
-                              <div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary flex-shrink-0">
-                                \${event.minute}'
+          }
+          
+          // Sort by minute
+          allEvents.sort((a, b) => (a.minute || 0) - (b.minute || 0));
+          
+          if (allEvents.length > 0) {
+            eventsHtml = \`
+              <div class="glass-card p-6 rounded-2xl mb-6">
+                <h3 class="text-xl font-bold mb-4">
+                  <i class="fas fa-list-ul mr-2"></i>
+                  \${t('events') || 'أحداث المباراة'}
+                </h3>
+                <div class="event-timeline">
+                  \${allEvents.map(event => {
+                    if (event.type === 'goal') {
+                      return \`
+                        <div class="event-item goal">
+                          <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1">
+                              <div class="flex items-center gap-2 mb-2">
+                                <i class="fas \${event.icon} text-green-500"></i>
+                                <span class="font-bold text-xl">\${event.minute}'</span>
+                                <span class="text-secondary">- \${event.team}</span>
                               </div>
-                              <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-1">
-                                  <i class="fas \${event.icon} \${event.color} text-xl"></i>
-                                  <p class="font-bold truncate">\${event.player}</p>
+                              <div class="scorer-name">
+                                <i class="fas fa-user-circle mr-2"></i>\${event.player}
+                              </div>
+                              \${event.assist ? \`
+                                <div class="assist-name">
+                                  <i class="fas fa-hands-helping mr-2"></i>
+                                  \${t('assist') || 'صناعة'}: \${event.assist}
                                 </div>
-                                <p class="text-xs text-secondary truncate">\${event.team}</p>
-                                \${event.assist ? \`<p class="text-xs text-secondary">تمريرة: \${event.assist}</p>\` : ''}
-                              </div>
-                            </div>
-                            <div class="text-2xl font-black \${isHome ? 'text-primary' : 'text-blue-500'} flex-shrink-0">
-                              ⚽
+                              \` : ''}
                             </div>
                           </div>
                         </div>
-                      </div>
-                    \`;
-                  } else if (event.type === 'yellow' || event.type === 'red') {
-                    return \`
-                      <div class="event-item">
-                        <div class="glass-card p-4 rounded-xl">
-                          <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center font-bold flex-shrink-0">
-                              \${event.minute}'
-                            </div>
-                            <div class="flex-1 min-w-0">
-                              <div class="flex items-center gap-2 mb-1">
-                                <i class="fas \${event.icon} \${event.color} text-xl"></i>
-                                <p class="font-bold truncate">\${event.player}</p>
+                      \`;
+                    } else if (event.type === 'yellow-card' || event.type === 'red-card') {
+                      return \`
+                        <div class="event-item \${event.type}">
+                          <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1">
+                              <div class="flex items-center gap-2 mb-2">
+                                <i class="fas \${event.icon}" style="color: \${event.color}"></i>
+                                <span class="font-bold text-xl">\${event.minute}'</span>
+                                <span class="text-secondary">- \${event.team}</span>
                               </div>
-                              <p class="text-xs text-secondary truncate">\${event.team}</p>
+                              <div class="card-player-name">
+                                <i class="fas fa-user-circle mr-2"></i>\${event.player}
+                              </div>
+                              <div class="text-sm text-secondary">
+                                \${event.card === 'YELLOW_CARD' ? (t('yellowCard') || 'إنذار') : (t('redCard') || 'طرد')}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    \`;
-                  } else if (event.type === 'substitution') {
-                    return \`
-                      <div class="event-item">
-                        <div class="glass-card p-4 rounded-xl">
-                          <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center font-bold flex-shrink-0">
-                              \${event.minute}'
-                            </div>
-                            <div class="flex-1 min-w-0">
-                              <div class="flex items-center gap-2 mb-1">
-                                <i class="fas \${event.icon} \${event.color}"></i>
-                                <p class="text-sm"><span class="text-red-500">⬇ \${event.playerOut}</span></p>
+                      \`;
+                    } else if (event.type === 'substitution') {
+                      return \`
+                        <div class="event-item substitution">
+                          <div class="flex items-start justify-between gap-4">
+                            <div class="flex-1">
+                              <div class="flex items-center gap-2 mb-2">
+                                <i class="fas \${event.icon} text-blue-500"></i>
+                                <span class="font-bold text-xl">\${event.minute}'</span>
+                                <span class="text-secondary">- \${event.team}</span>
                               </div>
-                              <p class="text-sm text-primary">⬆ \${event.playerIn}</p>
-                              <p class="text-xs text-secondary truncate">\${event.team}</p>
+                              <div class="text-sm">
+                                <div class="flex items-center gap-2 mb-1">
+                                  <i class="fas fa-arrow-down text-red-500"></i>
+                                  <span>\${event.playerOut}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                  <i class="fas fa-arrow-up text-green-500"></i>
+                                  <span>\${event.playerIn}</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    \`;
-                  }
-                }).join('')}
+                      \`;
+                    }
+                  }).join('')}
+                </div>
               </div>
-            </div>
-          \`;
+            \`;
+          }
         }
-        
+
         // Statistics
-        if (match.score && (match.score.fullTime.home !== null || match.status === 'IN_PLAY')) {
-          html += \`
-            <div class="glass-card p-4 md:p-6 rounded-2xl mb-6">
-              <h3 class="text-xl md:text-2xl font-bold gradient-text mb-6">
-                <i class="fas fa-chart-bar mr-3"></i>
-                <span data-translate="statistics">\${t('statistics') || 'الإحصائيات'}</span>
+        let statsHtml = '';
+        if (isFinished || isLive) {
+          const homeGoals = match.score.fullTime.home || 0;
+          const awayGoals = match.score.fullTime.away || 0;
+          const totalGoals = homeGoals + awayGoals;
+          
+          const homeCards = match.bookings ? match.bookings.filter(b => b.team.id === match.homeTeam.id).length : 0;
+          const awayCards = match.bookings ? match.bookings.filter(b => b.team.id === match.awayTeam.id).length : 0;
+          const totalCards = homeCards + awayCards;
+          
+          statsHtml = \`
+            <div class="glass-card p-6 rounded-2xl mb-6">
+              <h3 class="text-xl font-bold mb-4">
+                <i class="fas fa-chart-bar mr-2"></i>
+                \${t('statistics') || 'الإحصائيات'}
               </h3>
-              <div class="space-y-4">
+              <div class="space-y-6">
                 <!-- Goals -->
                 <div>
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="font-bold">\${match.score.fullTime.home || 0}</span>
-                    <span class="text-sm text-secondary">\${t('goals') || 'الأهداف'}</span>
-                    <span class="font-bold">\${match.score.fullTime.away || 0}</span>
+                  <div class="flex justify-between text-sm mb-2">
+                    <span>\${homeGoals}</span>
+                    <span class="font-bold">\${t('goals') || 'الأهداف'}</span>
+                    <span>\${awayGoals}</span>
                   </div>
-                  <div class="grid grid-cols-2 gap-2">
-                    <div class="stat-bar">
-                      <div class="stat-fill" style="width: \${match.score.fullTime.home ? (match.score.fullTime.home / (match.score.fullTime.home + match.score.fullTime.away || 1)) * 100 : 0}%"></div>
-                    </div>
-                    <div class="stat-bar" style="transform: scaleX(-1)">
-                      <div class="stat-fill" style="width: \${match.score.fullTime.away ? (match.score.fullTime.away / (match.score.fullTime.home + match.score.fullTime.away || 1)) * 100 : 0}%"></div>
-                    </div>
+                  <div class="stat-bar">
+                    <div class="stat-fill" style="width: \${totalGoals > 0 ? (homeGoals / totalGoals * 100) : 50}%"></div>
                   </div>
                 </div>
                 
                 <!-- Cards -->
-                \${match.bookings && match.bookings.length > 0 ? \`
+                \${totalCards > 0 ? \`
                   <div>
-                    <div class="flex items-center justify-between mb-2">
-                      <span class="font-bold">\${match.bookings.filter(b => b.team.id === match.homeTeam.id).length}</span>
-                      <span class="text-sm text-secondary">\${t('yellowCard') || 'البطاقات'}</span>
-                      <span class="font-bold">\${match.bookings.filter(b => b.team.id === match.awayTeam.id).length}</span>
+                    <div class="flex justify-between text-sm mb-2">
+                      <span>\${homeCards}</span>
+                      <span class="font-bold">\${t('cards') || 'البطاقات'}</span>
+                      <span>\${awayCards}</span>
+                    </div>
+                    <div class="stat-bar">
+                      <div class="stat-fill" style="width: \${homeCards / totalCards * 100}%"></div>
                     </div>
                   </div>
                 \` : ''}
@@ -874,70 +1112,104 @@ app.get('/matches/:id', (c) => {
             </div>
           \`;
         }
-        
-        // Lineup
-        if (match.lineups && match.lineups.length > 0) {
-          html += \`
-            <div class="glass-card p-4 md:p-6 rounded-2xl mb-6">
-              <h3 class="text-xl md:text-2xl font-bold gradient-text mb-4">
-                <i class="fas fa-users mr-3"></i>
-                <span data-translate="lineup">\${t('lineup') || 'التشكيلة'}</span>
+
+        // Lineups
+        let lineupsHtml = '';
+        if (match.homeTeam.lineup && match.homeTeam.lineup.length > 0) {
+          lineupsHtml = \`
+            <div class="glass-card p-6 rounded-2xl mb-6">
+              <h3 class="text-xl font-bold mb-4">
+                <i class="fas fa-users mr-2"></i>
+                \${t('lineup') || 'التشكيل'}
               </h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                \${match.lineups.map(lineup => \`
-                  <div>
-                    <div class="flex items-center gap-3 mb-4 p-3 bg-white/5 rounded-lg">
-                      <img src="\${lineup.team.crest}" class="w-8 h-8" onerror="this.style.display='none'">
-                      <h4 class="text-lg font-bold flex-1">\${lineup.team.name}</h4>
-                      <span class="text-sm text-secondary">\${lineup.formation || 'N/A'}</span>
-                    </div>
-                    <div class="space-y-2">
-                      \${lineup.startingEleven ? lineup.startingEleven.map(player => \`
-                        <div class="flex items-center gap-3 p-2 md:p-3 bg-white/5 rounded-lg hover:bg-white/10 transition">
-                          <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                            \${player.shirtNumber || '-'}
-                          </div>
-                          <p class="flex-1 text-sm md:text-base truncate">\${player.name}</p>
-                          <span class="text-xs text-secondary">\${player.position || ''}</span>
-                        </div>
-                      \`).join('') : '<p class="text-sm text-secondary">لا توجد تشكيلة</p>'}
-                      
-                      \${lineup.substitutes && lineup.substitutes.length > 0 ? \`
-                        <div class="mt-4 pt-4 border-t border-white/10">
-                          <p class="text-sm text-secondary mb-2 font-bold">\${t('substitutes') || 'البدلاء'}:</p>
-                          \${lineup.substitutes.map(player => \`
-                            <div class="flex items-center gap-3 p-2 bg-white/5 rounded-lg mb-1">
-                              <div class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs flex-shrink-0">
-                                \${player.shirtNumber || '-'}
-                              </div>
-                              <p class="flex-1 text-sm truncate">\${player.name}</p>
-                            </div>
-                          \`).join('')}
-                        </div>
-                      \` : ''}
-                    </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Home Team -->
+                <div>
+                  <div class="flex items-center gap-2 mb-4">
+                    <img src="\${match.homeTeam.crest}" class="w-6 h-6">
+                    <h4 class="font-bold text-lg">\${match.homeTeam.name}</h4>
+                    \${match.homeTeam.formation ? \`<span class="text-secondary">(\${match.homeTeam.formation})</span>\` : ''}
                   </div>
-                \`).join('')}
+                  <div class="space-y-2">
+                    \${match.homeTeam.lineup.map(player => \`
+                      <div class="lineup-player">
+                        <span class="font-bold text-primary mr-2">\${player.shirtNumber || ''}</span>
+                        <span>\${player.name}</span>
+                        \${player.position ? \`<span class="text-xs text-secondary ml-2">(\${player.position})</span>\` : ''}
+                      </div>
+                    \`).join('')}
+                  </div>
+                  
+                  \${match.homeTeam.bench && match.homeTeam.bench.length > 0 ? \`
+                    <div class="mt-4">
+                      <h5 class="font-bold text-sm text-secondary mb-2">\${t('bench') || 'البدلاء'}</h5>
+                      <div class="space-y-1">
+                        \${match.homeTeam.bench.map(player => \`
+                          <div class="text-sm opacity-75">
+                            <span class="font-bold text-primary mr-2">\${player.shirtNumber || ''}</span>
+                            <span>\${player.name}</span>
+                          </div>
+                        \`).join('')}
+                      </div>
+                    </div>
+                  \` : ''}
+                </div>
+                
+                <!-- Away Team -->
+                <div>
+                  <div class="flex items-center gap-2 mb-4">
+                    <img src="\${match.awayTeam.crest}" class="w-6 h-6">
+                    <h4 class="font-bold text-lg">\${match.awayTeam.name}</h4>
+                    \${match.awayTeam.formation ? \`<span class="text-secondary">(\${match.awayTeam.formation})</span>\` : ''}
+                  </div>
+                  <div class="space-y-2">
+                    \${match.awayTeam.lineup.map(player => \`
+                      <div class="lineup-player">
+                        <span class="font-bold text-primary mr-2">\${player.shirtNumber || ''}</span>
+                        <span>\${player.name}</span>
+                        \${player.position ? \`<span class="text-xs text-secondary ml-2">(\${player.position})</span>\` : ''}
+                      </div>
+                    \`).join('')}
+                  </div>
+                  
+                  \${match.awayTeam.bench && match.awayTeam.bench.length > 0 ? \`
+                    <div class="mt-4">
+                      <h5 class="font-bold text-sm text-secondary mb-2">\${t('bench') || 'البدلاء'}</h5>
+                      <div class="space-y-1">
+                        \${match.awayTeam.bench.map(player => \`
+                          <div class="text-sm opacity-75">
+                            <span class="font-bold text-primary mr-2">\${player.shirtNumber || ''}</span>
+                            <span>\${player.name}</span>
+                          </div>
+                        \`).join('')}
+                      </div>
+                    </div>
+                  \` : ''}
+                </div>
               </div>
             </div>
           \`;
         }
-        
-        container.innerHTML = html;
-        window.kooraxApplyTranslations();
+
+        container.innerHTML = compHtml + teamsHtml + matchInfoHtml + eventsHtml + statsHtml + lineupsHtml;
       }
       
       loadMatchDetails();
-      setInterval(loadMatchDetails, 30000);
       
-      window.addEventListener('language-changed', () => {
+      // Auto refresh for live matches
+      setInterval(() => {
         loadMatchDetails();
-      });
+      }, 30000);
+      
+      // Re-render on language change
+      window.addEventListener('languageChanged', loadMatchDetails);
     </script>
 </body>
 </html>
-  `);
-});
+  `)
+})
+
+
 // Competitions page + Mobile Menu
 app.get('/competitions', (c) => {
   return c.html(`

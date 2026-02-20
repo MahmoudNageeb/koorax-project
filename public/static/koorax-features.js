@@ -65,9 +65,16 @@ const TRANSLATIONS = {
     goal: 'هدف',
     ownGoal: 'هدف في مرماه',
     penalty: 'ركلة جزاء',
-    yellowCard: 'بطاقة صفراء',
-    redCard: 'بطاقة حمراء',
+    yellowCard: 'إنذار',
+    redCard: 'طرد',
     substitution: 'تبديل',
+    assist: 'صناعة',
+    halfTime: 'الشوط الأول',
+    matchInfo: 'معلومات المباراة',
+    selectDate: 'اختر اليوم',
+    bench: 'البدلاء',
+    unknown: 'غير معروف',
+    cards: 'البطاقات',
     
     // Table
     table: 'الجدول',
@@ -153,6 +160,13 @@ const TRANSLATIONS = {
     yellowCard: 'Yellow Card',
     redCard: 'Red Card',
     substitution: 'Substitution',
+    assist: 'Assist',
+    halfTime: 'Half Time',
+    matchInfo: 'Match Info',
+    selectDate: 'Select Date',
+    bench: 'Substitutes',
+    unknown: 'Unknown',
+    cards: 'Cards',
     
     // Table
     table: 'Table',
