@@ -169,7 +169,7 @@ app.get('/', (c) => {
                 <span data-translate="liveMatches">🔴 مباريات مباشرة الآن</span>
               </h2>
             </div>
-            <div id="live-matches" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            <div id="live-matches" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4"></div>
           </div>
         </div>
         
@@ -185,7 +185,8 @@ app.get('/', (c) => {
               <i class="fas fa-arrow-left mr-2"></i>
             </a>
           </div>
-          <div id="important-matches" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div id="important-matches" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+            <div class="skeleton h-32"></div>
             <div class="skeleton h-32"></div>
             <div class="skeleton h-32"></div>
           </div>
@@ -457,8 +458,8 @@ app.get('/matches', (c) => {
         const today = new Date();
         const dates = [];
         
-        // Generate 7 days (3 past + today + 3 future)
-        for (let i = -3; i <= 3; i++) {
+        // Generate 5 days (2 past + today + 2 future)
+        for (let i = -2; i <= 2; i++) {
           const date = new Date(today);
           date.setDate(today.getDate() + i);
           dates.push(date);
@@ -538,7 +539,7 @@ app.get('/matches', (c) => {
       function displayMatches() {
         let filtered = allMatches;
         
-        // Filter by date first
+        // Filter by date first (if date is selected)
         if (currentDate) {
           filtered = filtered.filter(m => {
             const matchDate = new Date(m.utcDate).toISOString().split('T')[0];
@@ -546,14 +547,15 @@ app.get('/matches', (c) => {
           });
         }
         
-        // Filter by status
+        // Filter by status (always apply)
         if (currentFilter === 'live') {
           filtered = filtered.filter(m => m.status === 'IN_PLAY' || m.status === 'PAUSED');
         } else if (currentFilter === 'scheduled') {
-          filtered = filtered.filter(m => m.status === 'SCHEDULED');
+          filtered = filtered.filter(m => m.status === 'SCHEDULED' || m.status === 'TIMED');
         } else if (currentFilter === 'finished') {
           filtered = filtered.filter(m => m.status === 'FINISHED');
         }
+        // 'all' means no status filter, show all matches
         
         const t = window.kooraxT;
         const container = document.getElementById('matches-container');
@@ -667,21 +669,6 @@ app.get('/matches/:id', (c) => {
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <link rel="stylesheet" href="/static/koorax-enhanced.css">
     <style>
-      .match-time-live {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        font-weight: bold;
-        animation: pulse 2s infinite;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
-      }
       .event-timeline {
         position: relative;
         padding-left: 30px;
@@ -820,16 +807,10 @@ app.get('/matches/:id', (c) => {
         const isLive = match.status === 'IN_PLAY' || match.status === 'PAUSED';
         const isFinished = match.status === 'FINISHED';
         
-        // Status badge with live minute
+        // Status badge
         let statusHtml = '';
         if (isLive) {
-          const minute = match.minute || '0';
-          statusHtml = \`
-            <div class="match-time-live">
-              <i class="fas fa-circle animate-ping"></i>
-              \${t('live')} - \${minute}'
-            </div>
-          \`;
+          statusHtml = \`<span class="status-live">\${t('live')}</span>\`;
         } else if (isFinished) {
           statusHtml = \`<span class="status-finished">\${t('finished')}</span>\`;
         } else {
