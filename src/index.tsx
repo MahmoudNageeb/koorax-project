@@ -2332,981 +2332,611 @@ app.get('/quiz', (c) => {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-    <style>
-      :root[data-theme="dark"] {
-        --primary: #7c3aed;
-        --secondary: #a855f7;
-        --bg-body: #0f172a;
-        --bg-card: #1e293b;
-        --text-primary: #f8fafc;
-        --text-secondary: #94a3b8;
-        --border: rgba(255, 255, 255, 0.1);
-      }
-      :root[data-theme="light"] {
-        --primary: #7c3aed;
-        --secondary: #a855f7;
-        --bg-body: #f8fafc;
-        --bg-card: #ffffff;
-        --text-primary: #0f172a;
-        --text-secondary: #64748b;
-        --border: rgba(0, 0, 0, 0.1);
-      }
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      body {
-        font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
-        background: var(--bg-body);
-        color: var(--text-primary);
-        min-height: 100vh;
-      }
-      .glass-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid var(--border);
-      }
-      .gradient-text {
-        background: linear-gradient(135deg, var(--primary), var(--secondary));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-      }
-      
-      /* Header & Navigation */
-      .header {
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        background: rgba(15, 23, 42, 0.95);
-        backdrop-filter: blur(10px);
-        border-bottom: 1px solid var(--border);
-      }
-      .logo {
-        font-size: 1.5rem;
-        font-weight: 800;
-        transition: transform 0.3s;
-      }
-      .logo:hover i {
-        transform: rotate(360deg);
-        transition: transform 0.7s;
-      }
-      .burger-menu {
-        display: none;
-        flex-direction: column;
-        gap: 5px;
-        cursor: pointer;
-        padding: 10px;
-      }
-      .burger-line {
-        width: 25px;
-        height: 3px;
-        background: var(--text-primary);
-        transition: all 0.3s;
-        border-radius: 2px;
-      }
-      .burger-menu.active .burger-line:nth-child(1) {
-        transform: rotate(45deg) translateY(8px);
-      }
-      .burger-menu.active .burger-line:nth-child(2) {
-        opacity: 0;
-      }
-      .burger-menu.active .burger-line:nth-child(3) {
-        transform: rotate(-45deg) translateY(-8px);
-      }
-      .nav-menu {
-        position: fixed;
-        top: 70px;
-        right: -300px;
-        width: 280px;
-        height: calc(100vh - 70px);
-        background: var(--bg-card);
-        border-left: 1px solid var(--border);
-        transition: right 0.3s ease;
-        padding: 20px;
-        overflow-y: auto;
-        box-shadow: -5px 0 20px rgba(0, 0, 0, 0.3);
-      }
-      .nav-menu.active {
-        right: 0;
-      }
-      .nav-link {
-        display: block;
-        padding: 15px 20px;
-        color: var(--text-primary);
-        text-decoration: none;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .nav-link:hover, .nav-link.active {
-        background: rgba(124, 58, 237, 0.2);
-        color: var(--primary);
-        transform: translateX(-5px);
-      }
-      .header-btn {
-        padding: 10px 15px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        color: var(--text-primary);
-        cursor: pointer;
-        transition: all 0.3s;
-      }
-      .header-btn:hover {
-        background: rgba(124, 58, 237, 0.2);
-        border-color: var(--primary);
-      }
-      .user-info {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 15px;
-        background: rgba(124, 58, 237, 0.1);
-        border-radius: 10px;
-        cursor: pointer;
-      }
-      
-      /* Login Modal */
-      .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        z-index: 2000;
-        align-items: center;
-        justify-content: center;
-        animation: fadeIn 0.3s;
-      }
-      .modal.active {
-        display: flex;
-      }
-      .modal-content {
-        background: var(--bg-card);
-        padding: 30px;
-        border-radius: 20px;
-        max-width: 400px;
-        width: 90%;
-        animation: slideUp 0.3s;
-      }
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      @keyframes slideUp {
-        from { transform: translateY(50px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-      }
-      .input-field {
-        width: 100%;
-        padding: 12px 15px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        color: var(--text-primary);
-        margin-bottom: 15px;
-      }
-      .btn-primary {
-        width: 100%;
-        padding: 12px;
-        background: linear-gradient(135deg, var(--primary), var(--secondary));
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: opacity 0.3s;
-      }
-      .btn-primary:hover {
-        opacity: 0.9;
-      }
-      
-      /* Quiz Styles */
-      .quiz-option {
-        background: rgba(255, 255, 255, 0.05);
-        border: 2px solid rgba(255, 255, 255, 0.1);
-        padding: 1rem;
-        border-radius: 12px;
-        transition: all 0.3s ease;
-        cursor: pointer;
-        text-align: right;
-      }
-      .quiz-option:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: var(--primary);
-        transform: translateX(-5px);
-      }
-      .quiz-option:disabled {
-        cursor: not-allowed;
-        opacity: 0.6;
-      }
-      .quiz-option.correct {
-        background: rgba(16, 185, 129, 0.2);
-        border-color: #10b981;
-        animation: correctPulse 0.5s ease;
-      }
-      .quiz-option.wrong {
-        background: rgba(239, 68, 68, 0.2);
-        border-color: #ef4444;
-        animation: shake 0.5s ease;
-      }
-      @keyframes correctPulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-      }
-      @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-10px); }
-        75% { transform: translateX(10px); }
-      }
-      
-      /* Motivational Popup */
-      .popup-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        z-index: 3000;
-        align-items: center;
-        justify-content: center;
-      }
-      .popup-overlay.active {
-        display: flex;
-        animation: fadeIn 0.3s;
-      }
-      .popup-box {
-        background: linear-gradient(135deg, var(--primary), var(--secondary));
-        padding: 40px;
-        border-radius: 20px;
-        text-align: center;
-        max-width: 500px;
-        width: 90%;
-        animation: popupScale 0.5s ease;
-        box-shadow: 0 10px 50px rgba(124, 58, 237, 0.5);
-      }
-      @keyframes popupScale {
-        0% { transform: scale(0.5); opacity: 0; }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); opacity: 1; }
-      }
-      .popup-box h2 {
-        font-size: 3rem;
-        margin-bottom: 20px;
-      }
-      .popup-box p {
-        font-size: 1.5rem;
-        color: white;
-        font-weight: bold;
-      }
-      .popup-close {
-        margin-top: 20px;
-        padding: 12px 30px;
-        background: white;
-        color: var(--primary);
-        border: none;
-        border-radius: 10px;
-        font-weight: bold;
-        cursor: pointer;
-      }
-      
-      /* Leaderboard */
-      .leaderboard-row {
-        transition: all 0.3s ease;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-      }
-      .leaderboard-row:hover {
-        background: rgba(255, 255, 255, 0.05);
-        transform: translateX(-5px);
-      }
-      .leaderboard-row.top-1 {
-        background: linear-gradient(90deg, rgba(255, 215, 0, 0.2), transparent);
-        border-right: 4px solid #FFD700;
-      }
-      .leaderboard-row.top-2 {
-        background: linear-gradient(90deg, rgba(192, 192, 192, 0.2), transparent);
-        border-right: 4px solid #C0C0C0;
-      }
-      .leaderboard-row.top-3 {
-        background: linear-gradient(90deg, rgba(205, 127, 50, 0.2), transparent);
-        border-right: 4px solid #CD7F32;
-      }
-      .leaderboard-row.current-user {
-        background: rgba(124, 58, 237, 0.2);
-        border-right: 4px solid var(--primary);
-        font-weight: bold;
-      }
-      
-      /* Countdown */
-      .countdown-timer {
-        font-family: 'Courier New', monospace;
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: var(--primary);
-      }
-      
-      /* Responsive */
-      @media (max-width: 768px) {
-        .burger-menu {
-          display: flex;
-        }
-        .desktop-nav {
-          display: none;
-        }
-        .countdown-timer {
-          font-size: 1.8rem;
-        }
-      }
-    </style>
+    <link rel="stylesheet" href="/static/koorax-enhanced.css">
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-      <div class="container mx-auto px-4 py-4">
-        <div class="flex items-center justify-between">
-          <!-- Logo -->
-          <a href="/" class="logo flex items-center gap-3">
-            <i class="fas fa-futbol text-3xl gradient-text"></i>
-            <span class="gradient-text">Koorax</span>
-          </a>
-          
-          <!-- Desktop Navigation (hidden on mobile) -->
-          <div class="desktop-nav flex items-center gap-3">
-            <button id="darkModeToggle" class="header-btn">
-              <i class="fas fa-moon"></i>
-            </button>
-            <button id="langToggle" class="header-btn">
-              <i class="fas fa-language"></i>
-              <span class="ml-2">EN</span>
-            </button>
-            <div id="userSection"></div>
-          </div>
-          
-          <!-- Burger Menu (visible on mobile) -->
-          <div class="burger-menu" id="burgerMenu">
-            <div class="burger-line"></div>
-            <div class="burger-line"></div>
-            <div class="burger-line"></div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Side Navigation Menu -->
-      <nav class="nav-menu" id="navMenu">
-        <a href="/" class="nav-link">
-          <i class="fas fa-home"></i>
-          <span>الرئيسية</span>
-        </a>
-        <a href="/matches" class="nav-link">
-          <i class="fas fa-calendar-alt"></i>
-          <span>المباريات</span>
-        </a>
-        <a href="/competitions" class="nav-link">
-          <i class="fas fa-trophy"></i>
-          <span>البطولات</span>
-        </a>
-        <a href="/quiz" class="nav-link active">
-          <i class="fas fa-question-circle"></i>
-          <span>فزورة كوراكس</span>
-        </a>
-        <hr style="border-color: var(--border); margin: 20px 0;">
-        <button id="darkModeToggleMobile" class="nav-link" style="width: 100%;">
-          <i class="fas fa-moon"></i>
-          <span>الوضع الداكن</span>
-        </button>
-        <button id="langToggleMobile" class="nav-link" style="width: 100%;">
-          <i class="fas fa-language"></i>
-          <span>English</span>
-        </button>
-        <div id="userSectionMobile" style="margin-top: 20px;"></div>
-      </nav>
-    </header>
-
-    <!-- Login Modal -->
-    <div class="modal" id="loginModal">
-      <div class="modal-content">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-2xl font-bold gradient-text">تسجيل الدخول</h2>
-          <button onclick="closeLoginModal()" class="text-2xl">×</button>
-        </div>
-        <form id="loginForm">
-          <input type="text" id="username" class="input-field" placeholder="اسم المستخدم" required>
-          <input type="password" id="password" class="input-field" placeholder="كلمة المرور" required>
-          <button type="submit" class="btn-primary">
-            <i class="fas fa-sign-in-alt ml-2"></i>
-            دخول
-          </button>
-        </form>
-        <p class="text-center text-secondary mt-4 text-sm">
-          مجرد demo - أي اسم مستخدم وكلمة مرور تعمل
-        </p>
-      </div>
-    </div>
-
-    <!-- Motivational Popup -->
-    <div class="popup-overlay" id="motivationalPopup">
-      <div class="popup-box">
-        <h2 id="popupIcon">🎉</h2>
-        <p id="popupMessage"></p>
-        <button class="popup-close" onclick="closeMotivationalPopup()">
-          <i class="fas fa-check ml-2"></i>
-          حلو!
-        </button>
-      </div>
-    </div>
-
-    <!-- Main Content -->
+    ${getEnhancedHeader('quiz')}
+    
     <div class="container mx-auto px-4 py-6">
-        <!-- Page Title -->
-        <div class="glass-card p-6 rounded-2xl mb-6">
-          <h1 class="text-4xl font-black gradient-text mb-2">
-            <i class="fas fa-question-circle ml-3"></i>
-            <span>فزورة كوراكس</span>
-          </h1>
-          <p style="color: var(--text-secondary)">اختبر معلوماتك الكروية واربح النقاط!</p>
-        </div>
-
-        <!-- Countdown Timer -->
-        <div class="glass-card p-6 rounded-2xl mb-6 text-center">
-          <p class="text-lg mb-2" style="color: var(--text-secondary)">
-            <i class="fas fa-clock ml-2"></i>
-            الوقت المتبقي للسؤال القادم
-          </p>
-          <div id="countdownTimer" class="countdown-timer"></div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- Quiz Section -->
-          <div class="lg:col-span-2">
-            <div id="quizContainer"></div>
-          </div>
-
-          <!-- Leaderboard Section -->
-          <div class="lg:col-span-1">
-            <div class="glass-card p-6 rounded-2xl">
-              <h2 class="text-2xl font-bold gradient-text mb-4">
-                <i class="fas fa-trophy ml-2"></i>
-                الصدارة الأسبوعية
-              </h2>
-              <div id="leaderboardContainer">
-                <div class="text-center py-8" style="color: var(--text-secondary)">
-                  جاري التحميل...
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-    </div>
-
-    <script>
-      // ==================== GLOBAL STATE ====================
-      const TRANSLATIONS = {
-        ar: {
-          home: 'الرئيسية',
-          matches: 'المباريات',
-          competitions: 'البطولات',
-          quiz: 'فزورة كوراكس',
-          darkMode: 'الوضع الداكن',
-          language: 'English',
-          login: 'تسجيل الدخول',
-          logout: 'تسجيل الخروج',
-          username: 'اسم المستخدم',
-          password: 'كلمة المرور',
-          loginBtn: 'دخول',
-          questionOfDay: 'سؤال اليوم',
-          points: 'نقطة',
-          correctAnswer: '🎉 إجابة صحيحة! حصلت على 10 نقاط',
-          wrongAnswer: '❌ إجابة خاطئة. الإجابة الصحيحة هي:',
-          alreadyAnswered: '✅ أنت جاوبت اليوم بالفعل! تعال بكرة لسؤال جديد!',
-          loginToPlay: 'سجل دخول علشان تشارك في الفزورة',
-          loginToPlayDesc: 'لازم تكون مسجل دخول عشان تقدر تجاوب على الأسئلة وتكسب النقاط',
-          timeRemaining: 'الوقت المتبقي للسؤال القادم',
-          weeklyLeaderboard: 'الصدارة الأسبوعية',
-          rank: 'الترتيب',
-          you: 'أنت'
-        },
-        en: {
-          home: 'Home',
-          matches: 'Matches',
-          competitions: 'Competitions',
-          quiz: 'Koorax Quiz',
-          darkMode: 'Dark Mode',
-          language: 'عربي',
-          login: 'Login',
-          logout: 'Logout',
-          username: 'Username',
-          password: 'Password',
-          loginBtn: 'Login',
-          questionOfDay: 'Question of the Day',
-          points: 'Points',
-          correctAnswer: '🎉 Correct! You earned 10 points',
-          wrongAnswer: '❌ Wrong answer. The correct answer is:',
-          alreadyAnswered: '✅ You already answered today! Come back tomorrow!',
-          loginToPlay: 'Login to participate in the quiz',
-          loginToPlayDesc: 'You need to be logged in to answer questions and earn points',
-          timeRemaining: 'Time remaining for next question',
-          weeklyLeaderboard: 'Weekly Leaderboard',
-          rank: 'Rank',
-          you: 'You'
-        }
-      };
-
-      const MOTIVATIONAL_MESSAGES = {
-        ar: [
-          '🔥 جامد جدًا! واضح إنك خبير كورة!',
-          '👑 أسد الفوازير!',
-          '⚽ ذكاء كروي من العيار التقيل!',
-          '🚀 استمر.. الصدارة بتنادي!',
-          '💪 أداء عالمي!',
-          '🎯 إجابة دقيقة زي ضربة جزاء رونالدو!',
-          '⚡ سرعة بديهة خيالية!',
-          '🏆 بطل الفوازير الكروية!',
-          '🌟 نجم اليوم بلا منازع!',
-          '🎖️ أداء احترافي من الطراز الأول!'
-        ],
-        en: [
-          '🔥 Amazing! You really know football!',
-          '👑 Quiz Champion!',
-          '⚽ Outstanding football knowledge!',
-          '🚀 Keep going.. the leaderboard awaits!',
-          '💪 World-class performance!',
-          '🎯 Accurate like a Ronaldo penalty!',
-          '⚡ Lightning-fast thinking!',
-          '🏆 Football Quiz Master!',
-          '🌟 Star of the day!',
-          '🎖️ Professional-level performance!'
-        ]
-      };
-
-      let currentLang = 'ar';
-      let currentTheme = 'dark';
-      let currentUser = null;
-
-      // Mock data
-      const mockQuiz = {
-        questionId: 1,
-        text: 'من هو الهداف التاريخي لدوري أبطال أوروبا؟',
-        options: ['كريستيانو رونالدو', 'ليونيل ميسي', 'روبرت ليفاندوفسكي', 'كريم بنزيما'],
-        correctAnswer: 'كريستيانو رونالدو',
-        points: 10
-      };
-
-      const mockLeaderboard = [
-        { rank: 1, username: 'Mahmoud_10', points: 150, isCurrentUser: false },
-        { rank: 2, username: 'Ahmed_Ahmed', points: 140, isCurrentUser: false },
-        { rank: 3, username: 'Salah_Fan', points: 130, isCurrentUser: false },
-        { rank: 4, username: 'Ali_Barca', points: 110, isCurrentUser: false },
-        { rank: 5, username: 'Hassan_LFC', points: 100, isCurrentUser: false },
-        { rank: 6, username: 'Youssef_RM', points: 90, isCurrentUser: false },
-        { rank: 7, username: 'Omar_Bayern', points: 80, isCurrentUser: false },
-        { rank: 8, username: 'Khaled_MC', points: 70, isCurrentUser: false },
-        { rank: 9, username: 'Tamer_PSG', points: 60, isCurrentUser: false },
-        { rank: 10, username: 'Karim_Juve', points: 50, isCurrentUser: false }
-      ];
-
-      let hasAnsweredToday = false;
-
-      // ==================== BACKEND FUNCTIONS ====================
-      
-      async function fetchTodayQuiz() {
-        // TODO: Replace with real API
-        // const response = await axios.get('/api/quiz/today');
-        // return response.data;
-        return Promise.resolve(mockQuiz);
-      }
-
-      async function checkIfUserAlreadyAnswered(userId, questionId) {
-        // TODO: Replace with real API
-        // const response = await axios.get(\`/api/quiz/check-answered?userId=\${userId}&questionId=\${questionId}\`);
-        // return response.data.hasAnswered;
-        return Promise.resolve(hasAnsweredToday);
-      }
-
-      async function submitAnswer(userId, answer, questionId) {
-        // TODO: Replace with real API
-        // const response = await axios.post('/api/quiz/submit', { userId, answer, questionId });
-        // return response.data;
-        
-        const isCorrect = answer === mockQuiz.correctAnswer;
-        const points = isCorrect ? mockQuiz.points : 0;
-        hasAnsweredToday = true;
-        
-        return Promise.resolve({
-          isCorrect,
-          points,
-          correctAnswer: mockQuiz.correctAnswer
-        });
-      }
-
-      async function fetchWeeklyLeaderboard(weekId = null) {
-        // TODO: Replace with real API
-        // const response = await axios.get(\`/api/quiz/leaderboard?week=\${weekId || 'current'}\`);
-        // return response.data;
-        
-        const leaderboard = [...mockLeaderboard];
-        if (currentUser) {
-          leaderboard.forEach(item => {
-            item.isCurrentUser = item.username === currentUser.username;
-          });
-        }
-        return Promise.resolve(leaderboard);
-      }
-
-      async function updateLeaderboard(userId, points) {
-        // TODO: Replace with real API
-        // const response = await axios.post('/api/quiz/update-points', { userId, points });
-        // return response.data;
-        return Promise.resolve({ success: true });
-      }
-
-      // ==================== UI FUNCTIONS ====================
-      
-      function t(key) {
-        return TRANSLATIONS[currentLang][key] || key;
-      }
-
-      function toggleBurgerMenu() {
-        document.getElementById('burgerMenu').classList.toggle('active');
-        document.getElementById('navMenu').classList.toggle('active');
-      }
-
-      function openLoginModal() {
-        document.getElementById('loginModal').classList.add('active');
-      }
-
-      function closeLoginModal() {
-        document.getElementById('loginModal').classList.remove('active');
-      }
-
-      function showMotivationalPopup() {
-        const messages = MOTIVATIONAL_MESSAGES[currentLang];
-        const message = messages[Math.floor(Math.random() * messages.length)];
-        document.getElementById('popupMessage').textContent = message;
-        document.getElementById('motivationalPopup').classList.add('active');
-      }
-
-      function closeMotivationalPopup() {
-        document.getElementById('motivationalPopup').classList.remove('active');
-      }
-
-      function updateUserSection() {
-        const desktopSection = document.getElementById('userSection');
-        const mobileSection = document.getElementById('userSectionMobile');
-        
-        if (currentUser) {
-          const userHTML = \`
-            <div class="user-info">
-              <i class="fas fa-user-circle"></i>
-              <span>\${currentUser.username}</span>
-            </div>
-            <button onclick="logout()" class="header-btn">
-              <i class="fas fa-sign-out-alt"></i>
-              <span class="ml-2">\${t('logout')}</span>
-            </button>
-          \`;
-          desktopSection.innerHTML = userHTML;
-          mobileSection.innerHTML = \`
-            <div class="nav-link">
-              <i class="fas fa-user-circle"></i>
-              <span>\${currentUser.username}</span>
-            </div>
-            <button onclick="logout()" class="nav-link" style="width: 100%;">
-              <i class="fas fa-sign-out-alt"></i>
-              <span>\${t('logout')}</span>
-            </button>
-          \`;
-        } else {
-          const loginHTML = \`
-            <button onclick="openLoginModal()" class="header-btn">
-              <i class="fas fa-sign-in-alt"></i>
-              <span class="ml-2">\${t('login')}</span>
-            </button>
-          \`;
-          desktopSection.innerHTML = loginHTML;
-          mobileSection.innerHTML = \`
-            <button onclick="openLoginModal()" class="nav-link" style="width: 100%;">
-              <i class="fas fa-sign-in-alt"></i>
-              <span>\${t('login')}</span>
-            </button>
-          \`;
-        }
-      }
-
-      function login(username) {
-        currentUser = { username, userId: Date.now() };
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        closeLoginModal();
-        updateUserSection();
-        displayQuiz();
-        loadLeaderboard();
-      }
-
-      function logout() {
-        currentUser = null;
-        localStorage.removeItem('currentUser');
-        updateUserSection();
-        displayQuiz();
-        loadLeaderboard();
-      }
-
-      function toggleDarkMode() {
-        currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', currentTheme);
-        localStorage.setItem('theme', currentTheme);
-        
-        const icon = currentTheme === 'dark' ? 'fa-moon' : 'fa-sun';
-        document.querySelectorAll('#darkModeToggle i, #darkModeToggleMobile i').forEach(el => {
-          el.className = \`fas \${icon}\`;
-        });
-      }
-
-      function toggleLanguage() {
-        currentLang = currentLang === 'ar' ? 'en' : 'ar';
-        document.documentElement.lang = currentLang;
-        document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-        localStorage.setItem('lang', currentLang);
-        
-        document.querySelectorAll('#langToggle span, #langToggleMobile span').forEach(el => {
-          el.textContent = t('language');
-        });
-        
-        updateUserSection();
-        displayQuiz();
-        loadLeaderboard();
-      }
-
-      async function displayQuiz() {
-        const container = document.getElementById('quizContainer');
-        
-        if (!currentUser) {
-          container.innerHTML = \`
-            <div class="glass-card p-12 text-center rounded-2xl">
-              <i class="fas fa-lock text-6xl mb-6" style="color: var(--primary)"></i>
-              <h3 class="text-2xl font-bold mb-4">\${t('loginToPlay')}</h3>
-              <p class="mb-6" style="color: var(--text-secondary)">\${t('loginToPlayDesc')}</p>
-              <button onclick="openLoginModal()" class="btn-primary" style="max-width: 300px; margin: 0 auto;">
-                <i class="fas fa-sign-in-alt ml-2"></i>
-                \${t('login')}
+        <!-- Login Required Message -->
+        <div id="login-required-section" style="display: none;">
+          <div class="glass-card p-8 rounded-2xl text-center max-w-md mx-auto">
+            <i class="fas fa-lock text-6xl gradient-text mb-6"></i>
+            <h2 class="text-3xl font-black gradient-text mb-4">تسجيل الدخول مطلوب</h2>
+            <p class="text-gray-400 mb-6">يجب عليك تسجيل الدخول أو إنشاء حساب للمشاركة في الفزورة اليومية</p>
+            <div class="flex gap-4 justify-center">
+              <button onclick="showRegisterModal()" class="btn-primary">
+                <i class="fas fa-user-plus"></i>
+                إنشاء حساب
+              </button>
+              <button onclick="showLoginModal()" class="btn-secondary">
+                <i class="fas fa-sign-in-alt"></i>
+                تسجيل دخول
               </button>
             </div>
-          \`;
-          return;
-        }
+          </div>
+        </div>
 
-        const quiz = await fetchTodayQuiz();
-        const alreadyAnswered = await checkIfUserAlreadyAnswered(currentUser.userId, quiz.questionId);
-
-        if (alreadyAnswered) {
-          container.innerHTML = \`
-            <div class="glass-card p-12 text-center rounded-2xl">
-              <i class="fas fa-check-circle text-6xl text-green-500 mb-6"></i>
-              <h3 class="text-2xl font-bold mb-4">\${t('alreadyAnswered')}</h3>
+        <!-- Quiz Section (for logged-in users) -->
+        <div id="quiz-section" style="display: none;">
+          <!-- Daily Quiz Card -->
+          <div class="glass-card p-6 rounded-2xl mb-6">
+            <div class="flex items-center gap-3 mb-6">
+              <i class="fas fa-calendar-day text-3xl gradient-text"></i>
+              <h2 class="text-3xl font-black gradient-text">فزورة اليوم</h2>
             </div>
-          \`;
-          return;
-        }
+            
+            <div id="quiz-content">
+              <!-- Question -->
+              <div id="question-card" class="mb-6">
+                <h3 class="text-xl font-bold mb-4" id="question-text">جاري تحميل السؤال...</h3>
+                
+                <!-- Options -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="options-container">
+                  <!-- Options will be inserted here -->
+                </div>
+              </div>
+              
+              <!-- Result Message -->
+              <div id="result-message" style="display: none;" class="p-4 rounded-xl text-center"></div>
+            </div>
+          </div>
 
-        container.innerHTML = \`
+          <!-- Weekly Leaderboard -->
           <div class="glass-card p-6 rounded-2xl">
-            <div class="flex items-center justify-between mb-6">
-              <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-full flex items-center justify-center" style="background: rgba(124, 58, 237, 0.2)">
-                  <i class="fas fa-question" style="color: var(--primary); font-size: 1.5rem"></i>
+            <div class="flex items-center gap-3 mb-6">
+              <i class="fas fa-trophy text-3xl gradient-text"></i>
+              <h2 class="text-3xl font-black gradient-text">المتصدرون هذا الأسبوع</h2>
+            </div>
+            
+            <div id="leaderboard-container">
+              <!-- Leaderboard will be inserted here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Dashboard (only for admin) -->
+        <div id="admin-section" style="display: none;">
+          <div class="glass-card p-6 rounded-2xl mb-6">
+            <div class="flex items-center gap-3 mb-6">
+              <i class="fas fa-user-shield text-3xl gradient-text"></i>
+              <h2 class="text-3xl font-black gradient-text">لوحة تحكم الأدمن</h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <!-- Stats Cards -->
+              <div class="glass-card p-4 rounded-xl">
+                <div class="flex items-center gap-3">
+                  <i class="fas fa-users text-2xl text-blue-500"></i>
+                  <div>
+                    <p class="text-gray-400 text-sm">إجمالي المتسابقين</p>
+                    <p class="text-2xl font-bold" id="total-users">0</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="glass-card p-4 rounded-xl">
+                <div class="flex items-center gap-3">
+                  <i class="fas fa-question-circle text-2xl text-green-500"></i>
+                  <div>
+                    <p class="text-gray-400 text-sm">إجمالي الأسئلة</p>
+                    <p class="text-2xl font-bold" id="total-questions">0</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="glass-card p-4 rounded-xl">
+                <div class="flex items-center gap-3">
+                  <i class="fas fa-check-circle text-2xl text-purple-500"></i>
+                  <div>
+                    <p class="text-gray-400 text-sm">إجابات اليوم</p>
+                    <p class="text-2xl font-bold" id="today-answers">0</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Participants Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-right">
+                <thead>
+                  <tr class="border-b border-gray-700">
+                    <th class="p-3">الاسم</th>
+                    <th class="p-3">البريد الإلكتروني</th>
+                    <th class="p-3">النقاط</th>
+                    <th class="p-3">تاريخ التسجيل</th>
+                    <th class="p-3">الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody id="participants-table">
+                  <!-- Participants will be inserted here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Add Question Form -->
+          <div class="glass-card p-6 rounded-2xl">
+            <h3 class="text-2xl font-black gradient-text mb-4">
+              <i class="fas fa-plus-circle"></i>
+              إضافة سؤال جديد
+            </h3>
+            
+            <form id="add-question-form" class="space-y-4">
+              <div>
+                <label class="block mb-2 font-semibold">نص السؤال</label>
+                <textarea id="question-input" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" rows="3" required></textarea>
+              </div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block mb-2 font-semibold">الخيار A</label>
+                  <input type="text" id="option-a" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" required>
                 </div>
                 <div>
-                  <h3 class="text-sm" style="color: var(--text-secondary)">\${t('questionOfDay')}</h3>
-                  <p class="text-xl font-bold">+\${quiz.points} \${t('points')}</p>
+                  <label class="block mb-2 font-semibold">الخيار B</label>
+                  <input type="text" id="option-b" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" required>
+                </div>
+                <div>
+                  <label class="block mb-2 font-semibold">الخيار C</label>
+                  <input type="text" id="option-c" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" required>
+                </div>
+                <div>
+                  <label class="block mb-2 font-semibold">الخيار D</label>
+                  <input type="text" id="option-d" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" required>
                 </div>
               </div>
+              
+              <div>
+                <label class="block mb-2 font-semibold">الإجابة الصحيحة</label>
+                <select id="correct-answer" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" required>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                  <option value="D">D</option>
+                </select>
+              </div>
+              
+              <button type="submit" class="btn-primary w-full">
+                <i class="fas fa-save"></i>
+                حفظ السؤال
+              </button>
+            </form>
+          </div>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div id="register-modal" class="login-modal">
+      <div class="login-modal-content">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-black gradient-text">
+            <i class="fas fa-user-plus"></i>
+            إنشاء حساب جديد
+          </h2>
+          <button onclick="closeRegisterModal()" class="text-white text-2xl">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <form id="register-form" class="space-y-4">
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-user"></i>
+              الاسم الكامل
+            </label>
+            <input type="text" id="register-name" class="form-input" placeholder="أدخل اسمك الكامل" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-envelope"></i>
+              البريد الإلكتروني
+            </label>
+            <input type="email" id="register-email" class="form-input" placeholder="your@email.com" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-lock"></i>
+              كلمة المرور
+            </label>
+            <input type="password" id="register-password" class="form-input" placeholder="أدخل كلمة مرور قوية" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-lock"></i>
+              تأكيد كلمة المرور
+            </label>
+            <input type="password" id="register-confirm-password" class="form-input" placeholder="أعد إدخال كلمة المرور" required>
+          </div>
+          
+          <div id="register-error" class="error-message" style="display: none;"></div>
+          <div id="register-success" class="success-message" style="display: none;"></div>
+          
+          <button type="submit" class="btn-primary w-full">
+            <i class="fas fa-user-plus"></i>
+            إنشاء حساب
+          </button>
+          
+          <p class="text-center text-gray-400">
+            لديك حساب بالفعل؟
+            <button type="button" onclick="closeRegisterModal(); showLoginModal();" class="text-purple-500 hover:text-purple-400">
+              تسجيل دخول
+            </button>
+          </p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal-quiz" class="login-modal">
+      <div class="login-modal-content">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-black gradient-text">
+            <i class="fas fa-sign-in-alt"></i>
+            تسجيل دخول
+          </h2>
+          <button onclick="closeLoginModal()" class="text-white text-2xl">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <form id="login-form-quiz" class="space-y-4">
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-envelope"></i>
+              البريد الإلكتروني
+            </label>
+            <input type="email" id="login-email-quiz" class="form-input" placeholder="your@email.com" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <i class="fas fa-lock"></i>
+              كلمة المرور
+            </label>
+            <input type="password" id="login-password-quiz" class="form-input" placeholder="أدخل كلمة المرور" required>
+          </div>
+          
+          <div id="login-error-quiz" class="error-message" style="display: none;"></div>
+          
+          <button type="submit" class="btn-primary w-full">
+            <i class="fas fa-sign-in-alt"></i>
+            تسجيل دخول
+          </button>
+          
+          <p class="text-center text-gray-400">
+            ليس لديك حساب؟
+            <button type="button" onclick="closeLoginModal(); showRegisterModal();" class="text-purple-500 hover:text-purple-400">
+              إنشاء حساب
+            </button>
+          </p>
+        </form>
+      </div>
+    </div>
+
+    <script src="/static/koorax-features.js"></script>
+    <script>
+    // Constants
+    const ADMIN_EMAIL = 'TN@gmail.com';
+    const ADMIN_PASSWORD = 'K00R@X';
+
+    // Mock Data
+    const mockQuestion = {
+      id: 1,
+      question: 'من هو الفريق الذي فاز بدوري أبطال أوروبا في موسم 2022-2023؟',
+      options: {
+        A: 'ريال مدريد',
+        B: 'مانشستر سيتي',
+        C: 'إنتر ميلان',
+        D: 'بايرن ميونخ'
+      },
+      correctAnswer: 'B',
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    const mockLeaderboard = [
+      { rank: 1, name: 'أحمد محمد', points: 150 },
+      { rank: 2, name: 'محمد علي', points: 140 },
+      { rank: 3, name: 'فاطمة أحمد', points: 130 },
+      { rank: 4, name: 'سارة محمود', points: 120 },
+      { rank: 5, name: 'عمر خالد', points: 110 }
+    ];
+
+    const mockParticipants = [
+      { id: 1, name: 'أحمد محمد', email: 'ahmed@example.com', points: 150, joinedAt: '2024-01-15' },
+      { id: 2, name: 'محمد علي', email: 'mohamed@example.com', points: 140, joinedAt: '2024-01-16' },
+      { id: 3, name: 'فاطمة أحمد', email: 'fatma@example.com', points: 130, joinedAt: '2024-01-17' }
+    ];
+
+    // Check authentication
+    function checkAuth() {
+      const user = localStorage.getItem('koorax_quiz_user');
+      if (user) {
+        try {
+          const userData = JSON.parse(user);
+          showQuizContent(userData);
+        } catch (error) {
+          showLoginRequired();
+        }
+      } else {
+        showLoginRequired();
+      }
+    }
+
+    // Show login required message
+    function showLoginRequired() {
+      document.getElementById('login-required-section').style.display = 'block';
+      document.getElementById('quiz-section').style.display = 'none';
+      document.getElementById('admin-section').style.display = 'none';
+    }
+
+    // Show quiz content
+    function showQuizContent(userData) {
+      document.getElementById('login-required-section').style.display = 'none';
+      
+      // Check if admin
+      if (userData.email === ADMIN_EMAIL) {
+        document.getElementById('quiz-section').style.display = 'block';
+        document.getElementById('admin-section').style.display = 'block';
+        loadAdminDashboard();
+      } else {
+        document.getElementById('quiz-section').style.display = 'block';
+        document.getElementById('admin-section').style.display = 'none';
+      }
+      
+      loadQuizQuestion();
+      loadLeaderboard();
+    }
+
+    // Load quiz question
+    function loadQuizQuestion() {
+      // TODO: Replace with API call
+      document.getElementById('question-text').textContent = mockQuestion.question;
+      
+      const optionsHtml = Object.entries(mockQuestion.options).map(([key, value]) => \`
+        <button onclick="submitAnswer('\${key}')" class="quiz-option p-4 rounded-xl bg-gray-800 hover:bg-purple-600 transition-all text-right border-2 border-gray-700 hover:border-purple-500">
+          <span class="font-bold">\${key})</span> \${value}
+        </button>
+      \`).join('');
+      
+      document.getElementById('options-container').innerHTML = optionsHtml;
+    }
+
+    // Submit answer
+    function submitAnswer(answer) {
+      // TODO: Replace with API call
+      const resultDiv = document.getElementById('result-message');
+      const isCorrect = answer === mockQuestion.correctAnswer;
+      
+      // Disable all options
+      document.querySelectorAll('.quiz-option').forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+      });
+      
+      if (isCorrect) {
+        resultDiv.className = 'success-message';
+        resultDiv.innerHTML = '<i class="fas fa-check-circle"></i> 🎉 إجابة صحيحة! حصلت على 10 نقاط';
+      } else {
+        resultDiv.className = 'error-message';
+        resultDiv.innerHTML = '<i class="fas fa-times-circle"></i> ❌ إجابة خاطئة. الإجابة الصحيحة: ' + mockQuestion.correctAnswer + ') ' + mockQuestion.options[mockQuestion.correctAnswer];
+      }
+      
+      resultDiv.style.display = 'block';
+    }
+
+    // Load leaderboard
+    function loadLeaderboard() {
+      // TODO: Replace with API call
+      const leaderboardHtml = mockLeaderboard.map(user => {
+        let icon = '';
+        let colorClass = '';
+        
+        if (user.rank === 1) {
+          icon = '<i class="fas fa-trophy text-yellow-400"></i>';
+          colorClass = 'bg-yellow-900 bg-opacity-20';
+        } else if (user.rank === 2) {
+          icon = '<i class="fas fa-medal text-gray-400"></i>';
+          colorClass = 'bg-gray-700 bg-opacity-20';
+        } else if (user.rank === 3) {
+          icon = '<i class="fas fa-medal text-orange-400"></i>';
+          colorClass = 'bg-orange-900 bg-opacity-20';
+        }
+        
+        return \`
+          <div class="flex items-center justify-between p-4 rounded-xl \${colorClass} mb-2 hover:bg-opacity-30 transition-all">
+            <div class="flex items-center gap-4">
+              <span class="text-2xl font-bold w-8">\${user.rank}</span>
+              \${icon}
+              <span class="font-semibold">\${user.name}</span>
             </div>
-
-            <h2 class="text-2xl font-bold mb-6">\${quiz.text}</h2>
-
-            <div class="space-y-3" id="quizOptions">
-              \${quiz.options.map((option, index) => \`
-                <button 
-                  class="quiz-option w-full" 
-                  data-answer="\${option}"
-                  onclick="handleAnswer('\${option}', \${quiz.questionId})">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold" style="background: rgba(255, 255, 255, 0.1)">
-                      \${String.fromCharCode(65 + index)}
-                    </div>
-                    <span class="text-lg">\${option}</span>
-                  </div>
-                </button>
-              \`).join('')}
-            </div>
-
-            <div id="resultContainer" class="mt-6"></div>
+            <span class="text-xl font-bold gradient-text">\${user.points} نقطة</span>
           </div>
         \`;
+      }).join('');
+      
+      document.getElementById('leaderboard-container').innerHTML = leaderboardHtml;
+    }
+
+    // Load admin dashboard
+    function loadAdminDashboard() {
+      // TODO: Replace with API calls
+      document.getElementById('total-users').textContent = mockParticipants.length;
+      document.getElementById('total-questions').textContent = '50';
+      document.getElementById('today-answers').textContent = '25';
+      
+      const participantsHtml = mockParticipants.map(user => \`
+        <tr class="border-b border-gray-700 hover:bg-gray-800">
+          <td class="p-3">\${user.name}</td>
+          <td class="p-3">\${user.email}</td>
+          <td class="p-3 font-bold text-purple-500">\${user.points}</td>
+          <td class="p-3">\${user.joinedAt}</td>
+          <td class="p-3">
+            <button onclick="deleteUser(\${user.id})" class="text-red-500 hover:text-red-400">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      \`).join('');
+      
+      document.getElementById('participants-table').innerHTML = participantsHtml;
+    }
+
+    // Delete user (admin only)
+    function deleteUser(userId) {
+      if (confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
+        // TODO: Replace with API call
+        alert('تم حذف المستخدم');
+        loadAdminDashboard();
       }
+    }
 
-      async function handleAnswer(selectedAnswer, questionId) {
-        const buttons = document.querySelectorAll('.quiz-option');
-        buttons.forEach(btn => btn.disabled = true);
+    // Show/hide modals
+    function showRegisterModal() {
+      document.getElementById('register-modal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
 
-        const result = await submitAnswer(currentUser.userId, selectedAnswer, questionId);
+    function closeRegisterModal() {
+      document.getElementById('register-modal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function showLoginModal() {
+      document.getElementById('login-modal-quiz').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLoginModal() {
+      document.getElementById('login-modal-quiz').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // Register form
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('register-name').value;
+      const email = document.getElementById('register-email').value;
+      const password = document.getElementById('register-password').value;
+      const confirmPassword = document.getElementById('register-confirm-password').value;
+      
+      const errorDiv = document.getElementById('register-error');
+      const successDiv = document.getElementById('register-success');
+      
+      errorDiv.style.display = 'none';
+      successDiv.style.display = 'none';
+      
+      // Validation
+      if (password !== confirmPassword) {
+        errorDiv.textContent = 'كلمة المرور غير متطابقة';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      if (password.length < 6) {
+        errorDiv.textContent = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      // TODO: Replace with actual API call
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Store user data
+      const userData = {
+        name,
+        email,
+        points: 0,
+        joinedAt: new Date().toISOString(),
+        isAdmin: email === ADMIN_EMAIL
+      };
+      
+      localStorage.setItem('koorax_quiz_user', JSON.stringify(userData));
+      
+      successDiv.textContent = '✅ تم إنشاء الحساب بنجاح! جاري تحويلك...';
+      successDiv.style.display = 'block';
+      
+      setTimeout(() => {
+        closeRegisterModal();
+        window.location.reload();
+      }, 1500);
+    });
+
+    // Login form
+    document.getElementById('login-form-quiz').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('login-email-quiz').value;
+      const password = document.getElementById('login-password-quiz').value;
+      
+      const errorDiv = document.getElementById('login-error-quiz');
+      errorDiv.style.display = 'none';
+      
+      // TODO: Replace with actual API call
+      // Check admin credentials
+      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        const userData = {
+          name: 'Admin',
+          email: ADMIN_EMAIL,
+          points: 0,
+          joinedAt: new Date().toISOString(),
+          isAdmin: true
+        };
         
-        buttons.forEach(btn => {
-          const answer = btn.getAttribute('data-answer');
-          if (answer === result.correctAnswer) {
-            btn.classList.add('correct');
-            btn.innerHTML = btn.innerHTML + ' <i class="fas fa-check-circle text-green-500 mr-2"></i>';
-          } else if (answer === selectedAnswer && !result.isCorrect) {
-            btn.classList.add('wrong');
-            btn.innerHTML = btn.innerHTML + ' <i class="fas fa-times-circle text-red-500 mr-2"></i>';
-          }
-        });
-
-        const resultContainer = document.getElementById('resultContainer');
-        if (result.isCorrect) {
-          resultContainer.innerHTML = \`
-            <div class="glass-card p-6 rounded-xl border-2" style="border-color: #10b981; animation: fadeInScale 0.5s;">
-              <div class="text-center">
-                <i class="fas fa-trophy text-6xl text-green-500 mb-4"></i>
-                <h3 class="text-2xl font-bold text-green-500 mb-2">\${t('correctAnswer')}</h3>
-                <div class="inline-block px-6 py-3 rounded-xl" style="background: rgba(16, 185, 129, 0.2)">
-                  <span class="text-2xl font-bold text-green-500">+\${result.points} \${t('points')}</span>
-                </div>
-              </div>
-            </div>
-          \`;
-          showMotivationalPopup();
-        } else {
-          resultContainer.innerHTML = \`
-            <div class="glass-card p-6 rounded-xl border-2" style="border-color: #ef4444; animation: fadeInScale 0.5s;">
-              <div class="text-center">
-                <i class="fas fa-times-circle text-6xl text-red-500 mb-4"></i>
-                <h3 class="text-2xl font-bold text-red-500 mb-2">\${t('wrongAnswer')}</h3>
-                <p class="text-lg" style="color: var(--text-secondary)">
-                  <span class="text-white font-bold">\${result.correctAnswer}</span>
-                </p>
-              </div>
-            </div>
-          \`;
-        }
-
-        await updateLeaderboard(currentUser.userId, result.points);
-        loadLeaderboard();
+        localStorage.setItem('koorax_quiz_user', JSON.stringify(userData));
+        window.location.reload();
+        return;
       }
-
-      async function loadLeaderboard() {
-        const container = document.getElementById('leaderboardContainer');
-        const leaderboard = await fetchWeeklyLeaderboard();
-
-        let html = '<div class="space-y-2">';
-        leaderboard.forEach(user => {
-          const rowClass = \`leaderboard-row \${
-            user.isCurrentUser ? 'current-user' : 
-            user.rank === 1 ? 'top-1' : 
-            user.rank === 2 ? 'top-2' : 
-            user.rank === 3 ? 'top-3' : ''
-          }\`;
-
-          const medal = user.rank === 1 ? '🥇' : user.rank === 2 ? '🥈' : user.rank === 3 ? '🥉' : '';
-
-          html += \`
-            <div class="\${rowClass}">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <span class="text-2xl">\${medal || user.rank}</span>
-                  <span class="font-bold">\${user.username}</span>
-                  \${user.isCurrentUser ? \`<span class="text-xs px-2 py-1 rounded" style="background: rgba(124, 58, 237, 0.2)">\${t('you')}</span>\` : ''}
-                </div>
-                <span class="font-bold" style="color: var(--primary)">\${user.points} \${t('points')}</span>
-              </div>
-            </div>
-          \`;
-        });
-        html += '</div>';
-
-        container.innerHTML = html;
-      }
-
-      function startCountdown() {
-        function updateCountdown() {
-          const now = new Date();
-          const tomorrow = new Date(now);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          tomorrow.setHours(0, 0, 0, 0);
-
-          const diff = tomorrow - now;
-          const hours = Math.floor(diff / (1000 * 60 * 60));
-          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-          const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-          document.getElementById('countdownTimer').textContent = 
-            \`\${hours.toString().padStart(2, '0')}:\${minutes.toString().padStart(2, '0')}:\${seconds.toString().padStart(2, '0')}\`;
-
-          if (diff <= 0) {
-            location.reload();
-          }
-        }
-
-        updateCountdown();
-        setInterval(updateCountdown, 1000);
-      }
-
-      // ==================== EVENT LISTENERS ====================
       
-      document.getElementById('burgerMenu').addEventListener('click', toggleBurgerMenu);
-      document.getElementById('darkModeToggle').addEventListener('click', toggleDarkMode);
-      document.getElementById('darkModeToggleMobile').addEventListener('click', toggleDarkMode);
-      document.getElementById('langToggle').addEventListener('click', toggleLanguage);
-      document.getElementById('langToggleMobile').addEventListener('click', toggleLanguage);
+      // Simulate regular user login
+      // In production, verify credentials with backend
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      document.getElementById('loginForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const username = document.getElementById('username').value;
-        login(username);
-      });
-
-      // Close modal on outside click
-      document.getElementById('loginModal').addEventListener('click', (e) => {
-        if (e.target.id === 'loginModal') {
-          closeLoginModal();
-        }
-      });
-
-      // ==================== INITIALIZATION ====================
+      const userData = {
+        name: email.split('@')[0],
+        email,
+        points: 0,
+        joinedAt: new Date().toISOString(),
+        isAdmin: false
+      };
       
-      // Load saved settings
-      const savedTheme = localStorage.getItem('theme') || 'dark';
-      const savedLang = localStorage.getItem('lang') || 'ar';
-      const savedUser = localStorage.getItem('currentUser');
+      localStorage.setItem('koorax_quiz_user', JSON.stringify(userData));
+      window.location.reload();
+    });
 
-      currentTheme = savedTheme;
-      currentLang = savedLang;
-      if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-      }
+    // Add question form (admin only)
+    document.getElementById('add-question-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const questionData = {
+        question: document.getElementById('question-input').value,
+        options: {
+          A: document.getElementById('option-a').value,
+          B: document.getElementById('option-b').value,
+          C: document.getElementById('option-c').value,
+          D: document.getElementById('option-d').value
+        },
+        correctAnswer: document.getElementById('correct-answer').value
+      };
+      
+      // TODO: Replace with API call
+      alert('تم إضافة السؤال بنجاح!');
+      e.target.reset();
+    });
 
-      document.documentElement.setAttribute('data-theme', currentTheme);
-      document.documentElement.lang = currentLang;
-      document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-
-      // Initialize
-      updateUserSection();
-      displayQuiz();
-      loadLeaderboard();
-      startCountdown();
+    // Initialize
+    checkAuth();
     </script>
 </body>
 </html>
   `);
 });
+
 
 export default app;
