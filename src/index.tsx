@@ -1,6 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serveStatic } from 'hono/cloudflare-workers';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { nanoid } from 'nanoid';
 import { 
   getCompetitions, 
   getMatches, 
@@ -17,9 +20,78 @@ import {
 
 type Bindings = {
   FOOTBALL_API_TOKEN?: string;
+  DB: D1Database;
+  SENDGRID_API_KEY?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+// JWT Secret (in production, use environment variable)
+const JWT_SECRET = 'koorax_secret_key_change_in_production';
+
+// Helper: Send verification email (using SendGrid)
+async function sendVerificationEmail(email: string, token: string, apiKey?: string) {
+  if (!apiKey) {
+    console.log('⚠️ SendGrid API key not configured. Verification email not sent.');
+    console.log('Verification link:', `https://your-domain.com/verify?token=${token}`);
+    return;
+  }
+
+  try {
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        personalizations: [{
+          to: [{ email }],
+          subject: 'تأكيد البريد الإلكتروني - Koorax'
+        }],
+        from: { email: 'noreply@koorax.com', name: 'Koorax' },
+        content: [{
+          type: 'text/html',
+          value: `
+            <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5;">
+              <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px;">
+                <h1 style="color: #7c3aed; text-align: center;">⚽ مرحبًا بك في Koorax</h1>
+                <p style="font-size: 16px; line-height: 1.6;">
+                  شكرًا لتسجيلك في موقع Koorax. للتأكيد على بريدك الإلكتروني، يرجى الضغط على الزر أدناه:
+                </p>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="https://your-domain.com/api/auth/verify-email?token=${token}" 
+                     style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                            color: white; 
+                            padding: 15px 40px; 
+                            text-decoration: none; 
+                            border-radius: 8px; 
+                            display: inline-block;
+                            font-weight: bold;">
+                    تأكيد البريد الإلكتروني
+                  </a>
+                </div>
+                <p style="color: #666; font-size: 14px;">
+                  إذا لم تقم بإنشاء هذا الحساب، يمكنك تجاهل هذه الرسالة.
+                </p>
+                <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                <p style="text-align: center; color: #999; font-size: 12px;">
+                  © 2024 Koorax. جميع الحقوق محفوظة.
+                </p>
+              </div>
+            </div>
+          `
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      console.error('SendGrid error:', await response.text());
+    }
+  } catch (error) {
+    console.error('Failed to send email:', error);
+  }
+}
 
 // Enable CORS
 app.use('*', cors());
@@ -29,6 +101,559 @@ app.use('/static/*', serveStatic({ root: './' }));
 
 // API Routes
 app.get('/api/competitions', async (c) => {
+
+// ===== AUTHENTICATION APIs =====
+
+// Register new user
+app.post('/api/auth/register', async (c) => {
+  try {
+    const { name, email, password } = await c.req.json();
+    
+    // Validation
+    if (!name || !email || !password) {
+      return c.json({ error: 'جميع الحقول مطلوبة' }, 400);
+    }
+    
+    if (password.length < 6) {
+      return c.json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }, 400);
+    }
+    
+    // Check if email already exists
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM users WHERE email = ?'
+    ).bind(email).first();
+    
+    if (existing) {
+      return c.json({ error: 'البريد الإلكتروني مسجل بالفعل' }, 400);
+    }
+    
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+    
+    // Generate verification token
+    const verificationToken = nanoid(32);
+    const tokenExpires = Math.floor(Date.now() / 1000) + (24 * 60 * 60); // 24 hours
+    
+    // Check if admin email
+    const isAdmin = email === 'TN@gmail.com' ? 1 : 0;
+    
+    // Insert user
+    const result = await c.env.DB.prepare(`
+      INSERT INTO users (name, email, password_hash, verification_token, verification_token_expires, is_admin)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(name, email, passwordHash, verificationToken, tokenExpires, isAdmin).run();
+    
+    // Send verification email
+    await sendVerificationEmail(email, verificationToken, c.env.SENDGRID_API_KEY);
+    
+    return c.json({ 
+      success: true, 
+      message: 'تم إنشاء الحساب بنجاح. يرجى التحقق من بريدك الإلكتروني.',
+      userId: result.meta.last_row_id
+    });
+    
+  } catch (error) {
+    console.error('Registration error:', error);
+    return c.json({ error: 'حدث خطأ أثناء التسجيل' }, 500);
+  }
+});
+
+// Verify email
+app.get('/api/auth/verify-email', async (c) => {
+  try {
+    const token = c.req.query('token');
+    
+    if (!token) {
+      return c.html(`
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head><meta charset="UTF-8"><title>خطأ في التحقق</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px;">
+          <h1 style="color: red;">⚠️ رابط غير صالح</h1>
+          <p>الرجاء التحقق من رابط التحقق المرسل إلى بريدك الإلكتروني.</p>
+        </body>
+        </html>
+      `);
+    }
+    
+    const user = await c.env.DB.prepare(`
+      SELECT id, email, verification_token_expires 
+      FROM users 
+      WHERE verification_token = ? AND email_verified = 0
+    `).bind(token).first();
+    
+    if (!user) {
+      return c.html(`
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head><meta charset="UTF-8"><title>خطأ في التحقق</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px;">
+          <h1 style="color: red;">⚠️ رابط غير صالح أو منتهي الصلاحية</h1>
+          <p>هذا الحساب تم تفعيله مسبقاً أو الرابط غير صحيح.</p>
+          <a href="/quiz" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: #7c3aed; color: white; text-decoration: none; border-radius: 5px;">العودة للموقع</a>
+        </body>
+        </html>
+      `);
+    }
+    
+    // Check if token expired
+    const now = Math.floor(Date.now() / 1000);
+    if (user.verification_token_expires < now) {
+      return c.html(`
+        <!DOCTYPE html>
+        <html lang="ar" dir="rtl">
+        <head><meta charset="UTF-8"><title>انتهت صلاحية الرابط</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px;">
+          <h1 style="color: orange;">⏰ انتهت صلاحية رابط التحقق</h1>
+          <p>الرجاء التسجيل مرة أخرى للحصول على رابط جديد.</p>
+          <a href="/quiz" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: #7c3aed; color: white; text-decoration: none; border-radius: 5px;">العودة للموقع</a>
+        </body>
+        </html>
+      `);
+    }
+    
+    // Verify email
+    await c.env.DB.prepare(`
+      UPDATE users 
+      SET email_verified = 1, verification_token = NULL, verification_token_expires = NULL 
+      WHERE id = ?
+    `).bind(user.id).run();
+    
+    return c.html(`
+      <!DOCTYPE html>
+      <html lang="ar" dir="rtl">
+      <head>
+        <meta charset="UTF-8">
+        <title>تم التحقق بنجاح</title>
+        <script>
+          setTimeout(() => window.location.href = '/quiz', 3000);
+        </script>
+      </head>
+      <body style="font-family: Arial; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div style="background: white; padding: 40px; border-radius: 20px; max-width: 500px; margin: 0 auto;">
+          <h1 style="color: #7c3aed;">✅ تم التحقق من بريدك الإلكتروني بنجاح!</h1>
+          <p style="font-size: 18px; color: #666;">يمكنك الآن تسجيل الدخول والمشاركة في الفوازير.</p>
+          <p style="color: #999; margin-top: 30px;">سيتم تحويلك تلقائيًا خلال 3 ثوانٍ...</p>
+          <a href="/quiz" style="display: inline-block; margin-top: 20px; padding: 15px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 10px; font-weight: bold;">الذهاب للموقع الآن</a>
+        </div>
+      </body>
+      </html>
+    `);
+    
+  } catch (error) {
+    console.error('Email verification error:', error);
+    return c.html(`
+      <!DOCTYPE html>
+      <html lang="ar" dir="rtl">
+      <head><meta charset="UTF-8"><title>خطأ</title></head>
+      <body style="font-family: Arial; text-align: center; padding: 50px;">
+        <h1 style="color: red;">⚠️ حدث خطأ</h1>
+        <p>الرجاء المحاولة مرة أخرى أو التواصل مع الدعم.</p>
+      </body>
+      </html>
+    `);
+  }
+});
+
+// Login
+app.post('/api/auth/login', async (c) => {
+  try {
+    const { email, password } = await c.req.json();
+    
+    if (!email || !password) {
+      return c.json({ error: 'البريد الإلكتروني وكلمة المرور مطلوبان' }, 400);
+    }
+    
+    // Get user
+    const user = await c.env.DB.prepare(`
+      SELECT id, name, email, password_hash, email_verified, is_admin, points
+      FROM users 
+      WHERE email = ?
+    `).bind(email).first();
+    
+    if (!user) {
+      return c.json({ error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' }, 401);
+    }
+    
+    // Verify password
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+    if (!validPassword) {
+      return c.json({ error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' }, 401);
+    }
+    
+    // Check if email verified
+    if (!user.email_verified) {
+      return c.json({ error: 'يرجى التحقق من بريدك الإلكتروني أولاً' }, 403);
+    }
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, isAdmin: user.is_admin },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    return c.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        isAdmin: user.is_admin === 1,
+        points: user.points,
+        emailVerified: user.email_verified === 1
+      }
+    });
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    return c.json({ error: 'حدث خطأ أثناء تسجيل الدخول' }, 500);
+  }
+});
+
+// Get current user info
+app.get('/api/auth/me', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'غير مصرح' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    const user = await c.env.DB.prepare(`
+      SELECT id, name, email, is_admin, points, email_verified, created_at
+      FROM users 
+      WHERE id = ?
+    `).bind(decoded.userId).first();
+    
+    if (!user) {
+      return c.json({ error: 'المستخدم غير موجود' }, 404);
+    }
+    
+    return c.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      isAdmin: user.is_admin === 1,
+      points: user.points,
+      emailVerified: user.email_verified === 1,
+      joinedAt: user.created_at
+    });
+    
+  } catch (error) {
+    return c.json({ error: 'غير مصرح' }, 401);
+  }
+});
+
+// ===== QUIZ APIs =====
+
+// Get today's question
+app.get('/api/quiz/today', async (c) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const question = await c.env.DB.prepare(`
+      SELECT id, question, option_a, option_b, option_c, option_d, quiz_date
+      FROM quiz_questions 
+      WHERE quiz_date = ?
+    `).bind(today).first();
+    
+    if (!question) {
+      return c.json({ error: 'لا يوجد سؤال لهذا اليوم' }, 404);
+    }
+    
+    // Check if user already answered (if authenticated)
+    const authHeader = c.req.header('Authorization');
+    let alreadyAnswered = false;
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        
+        const answer = await c.env.DB.prepare(`
+          SELECT id FROM user_answers 
+          WHERE user_id = ? AND question_id = ?
+        `).bind(decoded.userId, question.id).first();
+        
+        alreadyAnswered = !!answer;
+      } catch (e) {
+        // Invalid token, ignore
+      }
+    }
+    
+    return c.json({
+      id: question.id,
+      question: question.question,
+      options: {
+        A: question.option_a,
+        B: question.option_b,
+        C: question.option_c,
+        D: question.option_d
+      },
+      date: question.quiz_date,
+      alreadyAnswered
+    });
+    
+  } catch (error) {
+    console.error('Get today question error:', error);
+    return c.json({ error: 'حدث خطأ أثناء جلب السؤال' }, 500);
+  }
+});
+
+// Submit answer
+app.post('/api/quiz/answer', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'يجب تسجيل الدخول' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    const { questionId, answer } = await c.req.json();
+    
+    if (!questionId || !answer || !['A', 'B', 'C', 'D'].includes(answer)) {
+      return c.json({ error: 'بيانات غير صالحة' }, 400);
+    }
+    
+    // Get question
+    const question = await c.env.DB.prepare(`
+      SELECT id, correct_answer, quiz_date 
+      FROM quiz_questions 
+      WHERE id = ?
+    `).bind(questionId).first();
+    
+    if (!question) {
+      return c.json({ error: 'السؤال غير موجود' }, 404);
+    }
+    
+    // Check if already answered
+    const existing = await c.env.DB.prepare(`
+      SELECT id FROM user_answers 
+      WHERE user_id = ? AND question_id = ?
+    `).bind(decoded.userId, questionId).first();
+    
+    if (existing) {
+      return c.json({ error: 'لقد أجبت على هذا السؤال مسبقاً' }, 400);
+    }
+    
+    // Check answer
+    const isCorrect = answer === question.correct_answer;
+    const pointsEarned = isCorrect ? 10 : 0;
+    
+    // Save answer
+    await c.env.DB.prepare(`
+      INSERT INTO user_answers (user_id, question_id, answer, is_correct, points_earned)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(decoded.userId, questionId, answer, isCorrect ? 1 : 0, pointsEarned).run();
+    
+    // Update user points
+    if (isCorrect) {
+      await c.env.DB.prepare(`
+        UPDATE users SET points = points + ? WHERE id = ?
+      `).bind(pointsEarned, decoded.userId).run();
+    }
+    
+    return c.json({
+      correct: isCorrect,
+      correctAnswer: question.correct_answer,
+      pointsEarned
+    });
+    
+  } catch (error) {
+    console.error('Submit answer error:', error);
+    return c.json({ error: 'حدث خطأ أثناء إرسال الإجابة' }, 500);
+  }
+});
+
+// Get leaderboard
+app.get('/api/quiz/leaderboard', async (c) => {
+  try {
+    const result = await c.env.DB.prepare(`
+      SELECT 
+        u.id,
+        u.name,
+        u.points,
+        COUNT(CASE WHEN ua.is_correct = 1 THEN 1 END) as correct_answers,
+        COUNT(ua.id) as total_answers
+      FROM users u
+      LEFT JOIN user_answers ua ON u.id = ua.user_id
+      WHERE u.email_verified = 1 AND u.is_admin = 0
+      GROUP BY u.id
+      ORDER BY u.points DESC, correct_answers DESC
+      LIMIT 10
+    `).all();
+    
+    const leaderboard = result.results.map((user: any, index: number) => ({
+      rank: index + 1,
+      name: user.name,
+      points: user.points,
+      correctAnswers: user.correct_answers,
+      totalAnswers: user.total_answers
+    }));
+    
+    return c.json(leaderboard);
+    
+  } catch (error) {
+    console.error('Get leaderboard error:', error);
+    return c.json({ error: 'حدث خطأ أثناء جلب لوحة المتصدرين' }, 500);
+  }
+});
+
+// ===== ADMIN APIs =====
+
+// Get stats (admin only)
+app.get('/api/admin/stats', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'غير مصرح' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    if (!decoded.isAdmin) {
+      return c.json({ error: 'غير مصرح للوصول' }, 403);
+    }
+    
+    const totalUsers = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count FROM users WHERE is_admin = 0 AND email_verified = 1
+    `).first();
+    
+    const totalQuestions = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count FROM quiz_questions
+    `).first();
+    
+    const today = new Date().toISOString().split('T')[0];
+    const todayAnswers = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count 
+      FROM user_answers ua
+      JOIN quiz_questions q ON ua.question_id = q.id
+      WHERE q.quiz_date = ?
+    `).bind(today).first();
+    
+    return c.json({
+      totalUsers: totalUsers?.count || 0,
+      totalQuestions: totalQuestions?.count || 0,
+      todayAnswers: todayAnswers?.count || 0
+    });
+    
+  } catch (error) {
+    console.error('Get stats error:', error);
+    return c.json({ error: 'حدث خطأ' }, 500);
+  }
+});
+
+// Get all users (admin only)
+app.get('/api/admin/users', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'غير مصرح' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    if (!decoded.isAdmin) {
+      return c.json({ error: 'غير مصرح للوصول' }, 403);
+    }
+    
+    const result = await c.env.DB.prepare(`
+      SELECT id, name, email, points, email_verified, created_at
+      FROM users 
+      WHERE is_admin = 0
+      ORDER BY created_at DESC
+    `).all();
+    
+    return c.json(result.results);
+    
+  } catch (error) {
+    console.error('Get users error:', error);
+    return c.json({ error: 'حدث خطأ' }, 500);
+  }
+});
+
+// Delete user (admin only)
+app.delete('/api/admin/users/:id', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'غير مصرح' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    if (!decoded.isAdmin) {
+      return c.json({ error: 'غير مصرح للوصول' }, 403);
+    }
+    
+    const userId = parseInt(c.req.param('id'));
+    
+    await c.env.DB.prepare(`
+      DELETE FROM users WHERE id = ? AND is_admin = 0
+    `).bind(userId).run();
+    
+    return c.json({ success: true });
+    
+  } catch (error) {
+    console.error('Delete user error:', error);
+    return c.json({ error: 'حدث خطأ' }, 500);
+  }
+});
+
+// Add question (admin only)
+app.post('/api/admin/question', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'غير مصرح' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    if (!decoded.isAdmin) {
+      return c.json({ error: 'غير مصرح للوصول' }, 403);
+    }
+    
+    const { question, optionA, optionB, optionC, optionD, correctAnswer, quizDate } = await c.req.json();
+    
+    if (!question || !optionA || !optionB || !optionC || !optionD || !correctAnswer || !quizDate) {
+      return c.json({ error: 'جميع الحقول مطلوبة' }, 400);
+    }
+    
+    if (!['A', 'B', 'C', 'D'].includes(correctAnswer)) {
+      return c.json({ error: 'الإجابة الصحيحة يجب أن تكون A أو B أو C أو D' }, 400);
+    }
+    
+    const result = await c.env.DB.prepare(`
+      INSERT INTO quiz_questions (question, option_a, option_b, option_c, option_d, correct_answer, quiz_date, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(question, optionA, optionB, optionC, optionD, correctAnswer, quizDate, decoded.userId).run();
+    
+    return c.json({ 
+      success: true, 
+      questionId: result.meta.last_row_id 
+    });
+    
+  } catch (error: any) {
+    console.error('Add question error:', error);
+    if (error.message?.includes('UNIQUE')) {
+      return c.json({ error: 'يوجد سؤال بالفعل لهذا التاريخ' }, 400);
+    }
+    return c.json({ error: 'حدث خطأ أثناء إضافة السؤال' }, 500);
+  }
+});
+
+
   try {
     const data = await getCompetitions({ FOOTBALL_API_TOKEN: c.env.FOOTBALL_API_TOKEN });
     return c.json(data);
