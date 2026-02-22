@@ -96,8 +96,6 @@ app.use('*', cors());
 app.use('/static/*', serveStatic({ root: './' }));
 
 // API Routes
-app.get('/api/competitions', async (c) => {
-
 
 // ===== AUTHENTICATION APIs (using Web Crypto API) =====
 
@@ -160,7 +158,7 @@ app.post('/api/auth/register', async (c) => {
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     
     await c.env.DB.prepare(`
-      INSERT INTO users (name, email, password_hash, verification_token, is_verified)
+      INSERT INTO users (name, email, password_hash, verification_token, email_verified)
       VALUES (?, ?, ?, ?, 0)
     `).bind(name, email, passwordHash, verificationCode).run();
     
@@ -188,7 +186,7 @@ app.get('/api/auth/verify-email', async (c) => {
     }
     
     const user = await c.env.DB.prepare(
-      'SELECT id, verification_token FROM users WHERE email = ? AND is_verified = 0'
+      'SELECT id, verification_token FROM users WHERE email = ? AND email_verified = 0'
     ).bind(email).first() as any;
     
     if (!user) {
@@ -200,7 +198,7 @@ app.get('/api/auth/verify-email', async (c) => {
     }
     
     await c.env.DB.prepare(
-      'UPDATE users SET is_verified = 1 WHERE id = ?'
+      'UPDATE users SET email_verified = 1 WHERE id = ?'
     ).bind(user.id).run();
     
     return c.json({ success: true, message: 'تم تأكيد البريد بنجاح' });
@@ -233,7 +231,7 @@ app.post('/api/auth/login', async (c) => {
       return c.json({ error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' }, 401);
     }
     
-    if (user.is_verified !== 1) {
+    if (user.email_verified !== 1) {
       return c.json({ error: 'يجب تأكيد البريد الإلكتروني أولاً' }, 403);
     }
     
@@ -246,7 +244,8 @@ app.post('/api/auth/login', async (c) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        points: user.points || 0
+        points: user.points || 0,
+        is_admin: user.is_admin || 0
       }
     });
   } catch (error: any) {
@@ -271,7 +270,7 @@ app.get('/api/auth/me', async (c) => {
     }
     
     const user = await c.env.DB.prepare(
-      'SELECT id, name, email, points FROM users WHERE id = ?'
+      'SELECT id, name, email, points, is_admin FROM users WHERE id = ?'
     ).bind(decoded.userId).first() as any;
     
     if (!user) {
@@ -282,6 +281,44 @@ app.get('/api/auth/me', async (c) => {
   } catch (error: any) {
     console.error('Get user error:', error);
     return c.json({ error: 'حدث خطأ' }, 500);
+  }
+});
+
+
+// ===== FOOTBALL APIs =====
+
+// Get competitions
+app.get('/api/competitions', async (c) => {
+  try {
+    const competitions = await getCompetitions(c.env.FOOTBALL_API_TOKEN);
+    return c.json(competitions);
+  } catch (error) {
+    console.error('Competitions error:', error);
+    return c.json({ error: 'Failed to fetch competitions' }, 500);
+  }
+});
+
+// Get matches
+app.get('/api/matches', async (c) => {
+  try {
+    const status = c.req.query('status');
+    const matches = await getMatches(c.env.FOOTBALL_API_TOKEN, status);
+    return c.json(matches);
+  } catch (error) {
+    console.error('Matches error:', error);
+    return c.json({ error: 'Failed to fetch matches' }, 500);
+  }
+});
+
+// Get match by ID
+app.get('/api/matches/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const match = await getMatchById(id, c.env.FOOTBALL_API_TOKEN);
+    return c.json(match);
+  } catch (error) {
+    console.error('Match error:', error);
+    return c.json({ error: 'Failed to fetch match' }, 500);
   }
 });
 
@@ -590,7 +627,10 @@ app.post('/api/admin/question', async (c) => {
   }
 });
 
+// ===== FOOTBALL APIs =====
 
+// Get competitions
+app.get('/api/competitions', async (c) => {
   try {
     const data = await getCompetitions({ FOOTBALL_API_TOKEN: c.env.FOOTBALL_API_TOKEN });
     return c.json(data);
@@ -3205,7 +3245,7 @@ app.get('/quiz', (c) => {
     async function showQuizSection() {
       document.getElementById('auth-section').style.display = 'none';
       
-      if (currentUser.email === 'TN@gmail.com') {
+      if (currentUser.is_admin === 1) {
         document.getElementById('admin-section').style.display = 'block';
         document.getElementById('quiz-section').style.display = 'none';
         await loadAdminDashboard();
