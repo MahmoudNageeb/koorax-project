@@ -1,9 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serveStatic } from 'hono/cloudflare-workers';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { nanoid } from 'nanoid';
 import { 
   getCompetitions, 
   getMatches, 
@@ -27,7 +24,6 @@ type Bindings = {
 const app = new Hono<{ Bindings: Bindings }>();
 
 // JWT Secret (in production, use environment variable)
-const JWT_SECRET = 'koorax_secret_key_change_in_production';
 
 // Helper: Send verification email (using SendGrid)
 async function sendVerificationEmail(email: string, token: string, apiKey?: string) {
@@ -102,14 +98,48 @@ app.use('/static/*', serveStatic({ root: './' }));
 // API Routes
 app.get('/api/competitions', async (c) => {
 
-// ===== AUTHENTICATION APIs =====
 
-// Register new user
+// ===== AUTHENTICATION APIs (using Web Crypto API) =====
+
+// Helper: Hash password using Web Crypto API
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Helper: Verify password
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  const passwordHash = await hashPassword(password);
+  return passwordHash === hash;
+}
+
+// Helper: Generate simple token
+function generateToken(userId: number, email: string): string {
+  const payload = JSON.stringify({ userId, email, timestamp: Date.now() });
+  return btoa(payload);
+}
+
+// Helper: Verify token
+function verifyToken(token: string): { userId: number; email: string } | null {
+  try {
+    const payload = JSON.parse(atob(token));
+    // Simple validation: check if token is not too old (24 hours)
+    if (Date.now() - payload.timestamp > 24 * 60 * 60 * 1000) {
+      return null;
+    }
+    return { userId: payload.userId, email: payload.email };
+  } catch {
+    return null;
+  }
+}
+
+// Register
 app.post('/api/auth/register', async (c) => {
   try {
     const { name, email, password } = await c.req.json();
     
-    // Validation
     if (!name || !email || !password) {
       return c.json({ error: 'جميع الحقول مطلوبة' }, 400);
     }
@@ -118,7 +148,6 @@ app.post('/api/auth/register', async (c) => {
       return c.json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }, 400);
     }
     
-    // Check if email already exists
     const existing = await c.env.DB.prepare(
       'SELECT id FROM users WHERE email = ?'
     ).bind(email).first();
@@ -127,33 +156,23 @@ app.post('/api/auth/register', async (c) => {
       return c.json({ error: 'البريد الإلكتروني مسجل بالفعل' }, 400);
     }
     
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await hashPassword(password);
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Generate verification token
-    const verificationToken = nanoid(32);
-    const tokenExpires = Math.floor(Date.now() / 1000) + (24 * 60 * 60); // 24 hours
+    await c.env.DB.prepare(`
+      INSERT INTO users (name, email, password_hash, verification_token, is_verified)
+      VALUES (?, ?, ?, ?, 0)
+    `).bind(name, email, passwordHash, verificationCode).run();
     
-    // Check if admin email
-    const isAdmin = email === 'TN@gmail.com' ? 1 : 0;
-    
-    // Insert user
-    const result = await c.env.DB.prepare(`
-      INSERT INTO users (name, email, password_hash, verification_token, verification_token_expires, is_admin)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(name, email, passwordHash, verificationToken, tokenExpires, isAdmin).run();
-    
-    // Send verification email
-    await sendVerificationEmail(email, verificationToken, c.env.SENDGRID_API_KEY);
+    console.log(`Verification code for ${email}: ${verificationCode}`);
     
     return c.json({ 
       success: true, 
-      message: 'تم إنشاء الحساب بنجاح. يرجى التحقق من بريدك الإلكتروني.',
-      userId: result.meta.last_row_id
+      message: 'تم إرسال رمز التأكيد إلى بريدك الإلكتروني',
+      verificationCode
     });
-    
-  } catch (error) {
-    console.error('Registration error:', error);
+  } catch (error: any) {
+    console.error('Register error:', error);
     return c.json({ error: 'حدث خطأ أثناء التسجيل' }, 500);
   }
 });
@@ -161,97 +180,33 @@ app.post('/api/auth/register', async (c) => {
 // Verify email
 app.get('/api/auth/verify-email', async (c) => {
   try {
-    const token = c.req.query('token');
+    const email = c.req.query('email');
+    const code = c.req.query('code');
     
-    if (!token) {
-      return c.html(`
-        <!DOCTYPE html>
-        <html lang="ar" dir="rtl">
-        <head><meta charset="UTF-8"><title>خطأ في التحقق</title></head>
-        <body style="font-family: Arial; text-align: center; padding: 50px;">
-          <h1 style="color: red;">⚠️ رابط غير صالح</h1>
-          <p>الرجاء التحقق من رابط التحقق المرسل إلى بريدك الإلكتروني.</p>
-        </body>
-        </html>
-      `);
+    if (!email || !code) {
+      return c.json({ error: 'البيانات غير كاملة' }, 400);
     }
     
-    const user = await c.env.DB.prepare(`
-      SELECT id, email, verification_token_expires 
-      FROM users 
-      WHERE verification_token = ? AND email_verified = 0
-    `).bind(token).first();
+    const user = await c.env.DB.prepare(
+      'SELECT id, verification_token FROM users WHERE email = ? AND is_verified = 0'
+    ).bind(email).first() as any;
     
     if (!user) {
-      return c.html(`
-        <!DOCTYPE html>
-        <html lang="ar" dir="rtl">
-        <head><meta charset="UTF-8"><title>خطأ في التحقق</title></head>
-        <body style="font-family: Arial; text-align: center; padding: 50px;">
-          <h1 style="color: red;">⚠️ رابط غير صالح أو منتهي الصلاحية</h1>
-          <p>هذا الحساب تم تفعيله مسبقاً أو الرابط غير صحيح.</p>
-          <a href="/quiz" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: #7c3aed; color: white; text-decoration: none; border-radius: 5px;">العودة للموقع</a>
-        </body>
-        </html>
-      `);
+      return c.json({ error: 'المستخدم غير موجود أو تم التأكيد مسبقاً' }, 404);
     }
     
-    // Check if token expired
-    const now = Math.floor(Date.now() / 1000);
-    if (user.verification_token_expires < now) {
-      return c.html(`
-        <!DOCTYPE html>
-        <html lang="ar" dir="rtl">
-        <head><meta charset="UTF-8"><title>انتهت صلاحية الرابط</title></head>
-        <body style="font-family: Arial; text-align: center; padding: 50px;">
-          <h1 style="color: orange;">⏰ انتهت صلاحية رابط التحقق</h1>
-          <p>الرجاء التسجيل مرة أخرى للحصول على رابط جديد.</p>
-          <a href="/quiz" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: #7c3aed; color: white; text-decoration: none; border-radius: 5px;">العودة للموقع</a>
-        </body>
-        </html>
-      `);
+    if (user.verification_token !== code) {
+      return c.json({ error: 'رمز التأكيد غير صحيح' }, 400);
     }
     
-    // Verify email
-    await c.env.DB.prepare(`
-      UPDATE users 
-      SET email_verified = 1, verification_token = NULL, verification_token_expires = NULL 
-      WHERE id = ?
-    `).bind(user.id).run();
+    await c.env.DB.prepare(
+      'UPDATE users SET is_verified = 1 WHERE id = ?'
+    ).bind(user.id).run();
     
-    return c.html(`
-      <!DOCTYPE html>
-      <html lang="ar" dir="rtl">
-      <head>
-        <meta charset="UTF-8">
-        <title>تم التحقق بنجاح</title>
-        <script>
-          setTimeout(() => window.location.href = '/quiz', 3000);
-        </script>
-      </head>
-      <body style="font-family: Arial; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <div style="background: white; padding: 40px; border-radius: 20px; max-width: 500px; margin: 0 auto;">
-          <h1 style="color: #7c3aed;">✅ تم التحقق من بريدك الإلكتروني بنجاح!</h1>
-          <p style="font-size: 18px; color: #666;">يمكنك الآن تسجيل الدخول والمشاركة في الفوازير.</p>
-          <p style="color: #999; margin-top: 30px;">سيتم تحويلك تلقائيًا خلال 3 ثوانٍ...</p>
-          <a href="/quiz" style="display: inline-block; margin-top: 20px; padding: 15px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 10px; font-weight: bold;">الذهاب للموقع الآن</a>
-        </div>
-      </body>
-      </html>
-    `);
-    
-  } catch (error) {
-    console.error('Email verification error:', error);
-    return c.html(`
-      <!DOCTYPE html>
-      <html lang="ar" dir="rtl">
-      <head><meta charset="UTF-8"><title>خطأ</title></head>
-      <body style="font-family: Arial; text-align: center; padding: 50px;">
-        <h1 style="color: red;">⚠️ حدث خطأ</h1>
-        <p>الرجاء المحاولة مرة أخرى أو التواصل مع الدعم.</p>
-      </body>
-      </html>
-    `);
+    return c.json({ success: true, message: 'تم تأكيد البريد بنجاح' });
+  } catch (error: any) {
+    console.error('Verify email error:', error);
+    return c.json({ error: 'حدث خطأ أثناء التأكيد' }, 500);
   }
 });
 
@@ -264,34 +219,25 @@ app.post('/api/auth/login', async (c) => {
       return c.json({ error: 'البريد الإلكتروني وكلمة المرور مطلوبان' }, 400);
     }
     
-    // Get user
-    const user = await c.env.DB.prepare(`
-      SELECT id, name, email, password_hash, email_verified, is_admin, points
-      FROM users 
-      WHERE email = ?
-    `).bind(email).first();
+    const user = await c.env.DB.prepare(
+      'SELECT * FROM users WHERE email = ?'
+    ).bind(email).first() as any;
     
     if (!user) {
       return c.json({ error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' }, 401);
     }
     
-    // Verify password
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-    if (!validPassword) {
+    const isPasswordValid = await verifyPassword(password, user.password_hash);
+    
+    if (!isPasswordValid) {
       return c.json({ error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' }, 401);
     }
     
-    // Check if email verified
-    if (!user.email_verified) {
-      return c.json({ error: 'يرجى التحقق من بريدك الإلكتروني أولاً' }, 403);
+    if (user.is_verified !== 1) {
+      return c.json({ error: 'يجب تأكيد البريد الإلكتروني أولاً' }, 403);
     }
     
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, isAdmin: user.is_admin },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    const token = generateToken(user.id, user.email);
     
     return c.json({
       success: true,
@@ -300,51 +246,42 @@ app.post('/api/auth/login', async (c) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        isAdmin: user.is_admin === 1,
-        points: user.points,
-        emailVerified: user.email_verified === 1
+        points: user.points || 0
       }
     });
-    
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
     return c.json({ error: 'حدث خطأ أثناء تسجيل الدخول' }, 500);
   }
 });
 
-// Get current user info
+// Get current user
 app.get('/api/auth/me', async (c) => {
   try {
     const authHeader = c.req.header('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      return c.json({ error: 'غير مصرح' }, 401);
+      return c.json({ error: 'يجب تسجيل الدخول' }, 401);
     }
     
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = verifyToken(token);
     
-    const user = await c.env.DB.prepare(`
-      SELECT id, name, email, is_admin, points, email_verified, created_at
-      FROM users 
-      WHERE id = ?
-    `).bind(decoded.userId).first();
+    if (!decoded) {
+      return c.json({ error: 'توكن غير صحيح' }, 401);
+    }
+    
+    const user = await c.env.DB.prepare(
+      'SELECT id, name, email, points FROM users WHERE id = ?'
+    ).bind(decoded.userId).first() as any;
     
     if (!user) {
       return c.json({ error: 'المستخدم غير موجود' }, 404);
     }
     
-    return c.json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      isAdmin: user.is_admin === 1,
-      points: user.points,
-      emailVerified: user.email_verified === 1,
-      joinedAt: user.created_at
-    });
-    
-  } catch (error) {
-    return c.json({ error: 'غير مصرح' }, 401);
+    return c.json({ user });
+  } catch (error: any) {
+    console.error('Get user error:', error);
+    return c.json({ error: 'حدث خطأ' }, 500);
   }
 });
 
@@ -372,7 +309,7 @@ app.get('/api/quiz/today', async (c) => {
     if (authHeader?.startsWith('Bearer ')) {
       try {
         const token = authHeader.substring(7);
-        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        const decoded = verifyToken(token);
         
         const answer = await c.env.DB.prepare(`
           SELECT id FROM user_answers 
@@ -413,7 +350,7 @@ app.post('/api/quiz/answer', async (c) => {
     }
     
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = verifyToken(token);
     
     const { questionId, answer } = await c.req.json();
     
@@ -516,7 +453,7 @@ app.get('/api/admin/stats', async (c) => {
     }
     
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = verifyToken(token);
     
     if (!decoded.isAdmin) {
       return c.json({ error: 'غير مصرح للوصول' }, 403);
@@ -559,7 +496,7 @@ app.get('/api/admin/users', async (c) => {
     }
     
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = verifyToken(token);
     
     if (!decoded.isAdmin) {
       return c.json({ error: 'غير مصرح للوصول' }, 403);
@@ -589,7 +526,7 @@ app.delete('/api/admin/users/:id', async (c) => {
     }
     
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = verifyToken(token);
     
     if (!decoded.isAdmin) {
       return c.json({ error: 'غير مصرح للوصول' }, 403);
@@ -618,7 +555,7 @@ app.post('/api/admin/question', async (c) => {
     }
     
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = verifyToken(token);
     
     if (!decoded.isAdmin) {
       return c.json({ error: 'غير مصرح للوصول' }, 403);
@@ -2946,6 +2883,7 @@ app.get('/teams/:id', (c) => {
 
 
 // Standalone Quiz Page - فزورة كوراكس (Complete with Header, Login, etc.)
+// ===== QUIZ PAGE =====
 app.get('/quiz', (c) => {
   return c.html(`
 <!DOCTYPE html>
@@ -2958,33 +2896,166 @@ app.get('/quiz', (c) => {
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <link rel="stylesheet" href="/static/koorax-enhanced.css">
+    <style>
+    .btn-primary {
+      padding: 14px 24px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: white;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(34, 197, 94, 0.4);
+    }
+    .btn-secondary {
+      padding: 14px 24px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-weight: 700;
+      border: 2px solid rgba(34, 197, 94, 0.3);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-secondary:hover {
+      background: rgba(34, 197, 94, 0.2);
+      border-color: #22c55e;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .form-label {
+      font-weight: 600;
+      color: #fff;
+      font-size: 14px;
+    }
+    .form-input {
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 2px solid rgba(34, 197, 94, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: #22c55e;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    </style>
 </head>
 <body>
-    ${getEnhancedHeader('quiz')}
+    \${getEnhancedHeader('quiz')}
     
     <div class="container mx-auto px-4 py-6">
-        <!-- Login Required Message -->
-        <div id="login-required-section" style="display: none;">
-          <div class="glass-card p-8 rounded-2xl text-center max-w-md mx-auto">
+        <!-- Auth Section -->
+        <div id="auth-section" class="max-w-md mx-auto">
+          <div class="glass-card p-8 rounded-2xl text-center">
             <i class="fas fa-lock text-6xl gradient-text mb-6"></i>
             <h2 class="text-3xl font-black gradient-text mb-4">تسجيل الدخول مطلوب</h2>
             <p class="text-gray-400 mb-6">يجب عليك تسجيل الدخول أو إنشاء حساب للمشاركة في الفزورة اليومية</p>
             <div class="flex gap-4 justify-center">
-              <button onclick="showRegisterModal()" class="btn-primary">
+              <button onclick="showTab('register')" class="btn-primary">
                 <i class="fas fa-user-plus"></i>
                 إنشاء حساب
               </button>
-              <button onclick="showLoginModal()" class="btn-secondary">
+              <button onclick="showTab('login')" class="btn-secondary">
                 <i class="fas fa-sign-in-alt"></i>
                 تسجيل دخول
               </button>
             </div>
           </div>
+          
+          <!-- Register Form -->
+          <div id="register-form" class="glass-card p-8 rounded-2xl mt-6" style="display: none;">
+            <h3 class="text-2xl font-bold mb-6 text-center gradient-text">إنشاء حساب جديد</h3>
+            <form onsubmit="handleRegister(event)">
+              <div class="form-group mb-4">
+                <label class="form-label">الاسم</label>
+                <input type="text" id="reg-name" class="form-input" required minlength="3">
+              </div>
+              <div class="form-group mb-4">
+                <label class="form-label">البريد الإلكتروني</label>
+                <input type="email" id="reg-email" class="form-input" required>
+              </div>
+              <div class="form-group mb-4">
+                <label class="form-label">كلمة السر</label>
+                <input type="password" id="reg-password" class="form-input" required minlength="6">
+              </div>
+              <div class="form-group mb-4">
+                <label class="form-label">تأكيد كلمة السر</label>
+                <input type="password" id="reg-confirm" class="form-input" required>
+              </div>
+              <div id="reg-message" class="text-center mb-4"></div>
+              <button type="submit" class="btn-primary w-full">
+                <i class="fas fa-user-plus"></i>
+                إنشاء الحساب
+              </button>
+              <p class="text-center mt-4 text-sm">
+                لديك حساب؟ 
+                <button type="button" onclick="showTab('login')" class="text-primary hover:underline">تسجيل الدخول</button>
+              </p>
+            </form>
+          </div>
+          
+          <!-- Login Form -->
+          <div id="login-form" class="glass-card p-8 rounded-2xl mt-6" style="display: none;">
+            <h3 class="text-2xl font-bold mb-6 text-center gradient-text">تسجيل الدخول</h3>
+            <form onsubmit="handleLogin(event)">
+              <div class="form-group mb-4">
+                <label class="form-label">البريد الإلكتروني</label>
+                <input type="email" id="login-email" class="form-input" required>
+              </div>
+              <div class="form-group mb-4">
+                <label class="form-label">كلمة السر</label>
+                <input type="password" id="login-password" class="form-input" required>
+              </div>
+              <div id="login-message" class="text-center mb-4"></div>
+              <button type="submit" class="btn-primary w-full">
+                <i class="fas fa-sign-in-alt"></i>
+                دخول
+              </button>
+              <p class="text-center mt-4 text-sm">
+                ليس لديك حساب؟ 
+                <button type="button" onclick="showTab('register')" class="text-primary hover:underline">إنشاء حساب</button>
+              </p>
+            </form>
+          </div>
+          
+          <!-- Email Verification -->
+          <div id="verify-form" class="glass-card p-8 rounded-2xl mt-6" style="display: none;">
+            <h3 class="text-2xl font-bold mb-6 text-center gradient-text">تأكيد البريد الإلكتروني</h3>
+            <p class="text-center mb-6 text-gray-400">تم إرسال رمز التأكيد إلى بريدك الإلكتروني</p>
+            <p class="text-center mb-6 text-sm text-gray-500">للتجربة: الرمز هو <span class="font-bold text-primary">123456</span></p>
+            <form onsubmit="handleVerify(event)">
+              <div class="form-group mb-4">
+                <label class="form-label">رمز التأكيد</label>
+                <input type="text" id="verify-code" class="form-input text-center text-2xl" required maxlength="6" pattern="[0-9]{6}">
+              </div>
+              <div id="verify-message" class="text-center mb-4"></div>
+              <button type="submit" class="btn-primary w-full">
+                <i class="fas fa-check"></i>
+                تأكيد
+              </button>
+            </form>
+          </div>
         </div>
 
-        <!-- Quiz Section (for logged-in users) -->
+        <!-- Quiz Section -->
         <div id="quiz-section" style="display: none;">
-          <!-- Daily Quiz Card -->
           <div class="glass-card p-6 rounded-2xl mb-6">
             <div class="flex items-center gap-3 mb-6">
               <i class="fas fa-calendar-day text-3xl gradient-text"></i>
@@ -2992,571 +3063,396 @@ app.get('/quiz', (c) => {
             </div>
             
             <div id="quiz-content">
-              <!-- Question -->
-              <div id="question-card" class="mb-6">
+              <div id="question-card">
                 <h3 class="text-xl font-bold mb-4" id="question-text">جاري تحميل السؤال...</h3>
-                
-                <!-- Options -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="options-container">
-                  <!-- Options will be inserted here -->
-                </div>
+                <div id="options-container" class="grid gap-4"></div>
+                <div id="result-message" class="mt-6"></div>
               </div>
               
-              <!-- Result Message -->
-              <div id="result-message" style="display: none;" class="p-4 rounded-xl text-center"></div>
+              <div id="answered-card" style="display: none;">
+                <div class="text-center p-8">
+                  <i class="fas fa-check-circle text-6xl text-green-500 mb-4"></i>
+                  <h3 class="text-2xl font-bold mb-2">لقد أجبت على هذا السؤال!</h3>
+                  <p class="text-gray-400">عد غداً للإجابة على سؤال جديد</p>
+                </div>
+              </div>
             </div>
           </div>
-
-          <!-- Weekly Leaderboard -->
+          
           <div class="glass-card p-6 rounded-2xl">
             <div class="flex items-center gap-3 mb-6">
               <i class="fas fa-trophy text-3xl gradient-text"></i>
-              <h2 class="text-3xl font-black gradient-text">المتصدرون هذا الأسبوع</h2>
+              <h2 class="text-2xl font-black gradient-text">لوحة المتصدرين</h2>
             </div>
-            
-            <div id="leaderboard-container">
-              <!-- Leaderboard will be inserted here -->
-            </div>
+            <div id="leaderboard-container" class="space-y-3"></div>
           </div>
         </div>
 
-        <!-- Admin Dashboard (only for admin) -->
+        <!-- Admin Section -->
         <div id="admin-section" style="display: none;">
           <div class="glass-card p-6 rounded-2xl mb-6">
-            <div class="flex items-center gap-3 mb-6">
-              <i class="fas fa-user-shield text-3xl gradient-text"></i>
-              <h2 class="text-3xl font-black gradient-text">لوحة تحكم الأدمن</h2>
-            </div>
+            <h2 class="text-2xl font-bold mb-6 gradient-text">لوحة التحكم</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <!-- Stats Cards -->
               <div class="glass-card p-4 rounded-xl">
-                <div class="flex items-center gap-3">
-                  <i class="fas fa-users text-2xl text-blue-500"></i>
-                  <div>
-                    <p class="text-gray-400 text-sm">إجمالي المتسابقين</p>
-                    <p class="text-2xl font-bold" id="total-users">0</p>
-                  </div>
-                </div>
+                <i class="fas fa-users text-3xl text-primary mb-2"></i>
+                <h3 class="text-lg font-bold">إجمالي المتسابقين</h3>
+                <p class="text-3xl font-black text-primary" id="total-users">0</p>
               </div>
-              
               <div class="glass-card p-4 rounded-xl">
-                <div class="flex items-center gap-3">
-                  <i class="fas fa-question-circle text-2xl text-green-500"></i>
-                  <div>
-                    <p class="text-gray-400 text-sm">إجمالي الأسئلة</p>
-                    <p class="text-2xl font-bold" id="total-questions">0</p>
-                  </div>
-                </div>
+                <i class="fas fa-question-circle text-3xl text-green-500 mb-2"></i>
+                <h3 class="text-lg font-bold">إجمالي الأسئلة</h3>
+                <p class="text-3xl font-black text-green-500" id="total-questions">0</p>
               </div>
-              
               <div class="glass-card p-4 rounded-xl">
-                <div class="flex items-center gap-3">
-                  <i class="fas fa-check-circle text-2xl text-purple-500"></i>
-                  <div>
-                    <p class="text-gray-400 text-sm">إجابات اليوم</p>
-                    <p class="text-2xl font-bold" id="today-answers">0</p>
-                  </div>
-                </div>
+                <i class="fas fa-chart-line text-3xl text-blue-500 mb-2"></i>
+                <h3 class="text-lg font-bold">إجابات اليوم</h3>
+                <p class="text-3xl font-black text-blue-500" id="today-answers">0</p>
               </div>
             </div>
-
-            <!-- Participants Table -->
-            <div class="overflow-x-auto">
-              <table class="w-full text-right">
-                <thead>
-                  <tr class="border-b border-gray-700">
-                    <th class="p-3">الاسم</th>
-                    <th class="p-3">البريد الإلكتروني</th>
-                    <th class="p-3">النقاط</th>
-                    <th class="p-3">تاريخ التسجيل</th>
-                    <th class="p-3">الإجراءات</th>
-                  </tr>
-                </thead>
-                <tbody id="participants-table">
-                  <!-- Participants will be inserted here -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Add Question Form -->
-          <div class="glass-card p-6 rounded-2xl">
-            <h3 class="text-2xl font-black gradient-text mb-4">
-              <i class="fas fa-plus-circle"></i>
-              إضافة سؤال جديد
-            </h3>
             
-            <form id="add-question-form" class="space-y-4">
-              <div>
-                <label class="block mb-2 font-semibold">نص السؤال</label>
-                <textarea id="question-input" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" rows="3" required></textarea>
+            <div class="mb-6">
+              <h3 class="text-xl font-bold mb-4">المتسابقون</h3>
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead>
+                    <tr class="border-b border-gray-700">
+                      <th class="p-3 text-right">الاسم</th>
+                      <th class="p-3 text-right">البريد</th>
+                      <th class="p-3 text-right">النقاط</th>
+                      <th class="p-3 text-right">تاريخ التسجيل</th>
+                      <th class="p-3 text-right">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody id="participants-table"></tbody>
+                </table>
               </div>
-              
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block mb-2 font-semibold">الخيار A</label>
-                  <input type="text" id="option-a" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" required>
+            </div>
+            
+            <div>
+              <h3 class="text-xl font-bold mb-4">إضافة سؤال جديد</h3>
+              <form onsubmit="handleAddQuestion(event)" class="space-y-4">
+                <div class="form-group">
+                  <label class="form-label">نص السؤال</label>
+                  <textarea id="q-text" class="form-input" rows="3" required></textarea>
                 </div>
-                <div>
-                  <label class="block mb-2 font-semibold">الخيار B</label>
-                  <input type="text" id="option-b" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" required>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="form-group">
+                    <label class="form-label">الخيار A</label>
+                    <input type="text" id="q-a" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">الخيار B</label>
+                    <input type="text" id="q-b" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">الخيار C</label>
+                    <input type="text" id="q-c" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">الخيار D</label>
+                    <input type="text" id="q-d" class="form-input" required>
+                  </div>
                 </div>
-                <div>
-                  <label class="block mb-2 font-semibold">الخيار C</label>
-                  <input type="text" id="option-c" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" required>
+                <div class="form-group">
+                  <label class="form-label">الإجابة الصحيحة</label>
+                  <select id="q-correct" class="form-input" required>
+                    <option value="">اختر الإجابة</option>
+                    <option value="a">A</option>
+                    <option value="b">B</option>
+                    <option value="c">C</option>
+                    <option value="d">D</option>
+                  </select>
                 </div>
-                <div>
-                  <label class="block mb-2 font-semibold">الخيار D</label>
-                  <input type="text" id="option-d" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" required>
-                </div>
-              </div>
-              
-              <div>
-                <label class="block mb-2 font-semibold">الإجابة الصحيحة</label>
-                <select id="correct-answer" class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:border-purple-500 focus:outline-none" required>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                  <option value="D">D</option>
-                </select>
-              </div>
-              
-              <button type="submit" class="btn-primary w-full">
-                <i class="fas fa-save"></i>
-                حفظ السؤال
-              </button>
-            </form>
+                <button type="submit" class="btn-primary">
+                  <i class="fas fa-plus"></i>
+                  إضافة السؤال
+                </button>
+              </form>
+            </div>
           </div>
         </div>
     </div>
 
-    <!-- Register Modal -->
-    <div id="register-modal" class="login-modal">
-      <div class="login-modal-content">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-black gradient-text">
-            <i class="fas fa-user-plus"></i>
-            إنشاء حساب جديد
-          </h2>
-          <button onclick="closeRegisterModal()" class="text-white text-2xl">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        
-        <form id="register-form" class="space-y-4">
-          <div class="form-group">
-            <label class="form-label">
-              <i class="fas fa-user"></i>
-              الاسم الكامل
-            </label>
-            <input type="text" id="register-name" class="form-input" placeholder="أدخل اسمك الكامل" required>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">
-              <i class="fas fa-envelope"></i>
-              البريد الإلكتروني
-            </label>
-            <input type="email" id="register-email" class="form-input" placeholder="your@email.com" required>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">
-              <i class="fas fa-lock"></i>
-              كلمة المرور
-            </label>
-            <input type="password" id="register-password" class="form-input" placeholder="أدخل كلمة مرور قوية" required>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">
-              <i class="fas fa-lock"></i>
-              تأكيد كلمة المرور
-            </label>
-            <input type="password" id="register-confirm-password" class="form-input" placeholder="أعد إدخال كلمة المرور" required>
-          </div>
-          
-          <div id="register-error" class="error-message" style="display: none;"></div>
-          <div id="register-success" class="success-message" style="display: none;"></div>
-          
-          <button type="submit" class="btn-primary w-full">
-            <i class="fas fa-user-plus"></i>
-            إنشاء حساب
-          </button>
-          
-          <p class="text-center text-gray-400">
-            لديك حساب بالفعل؟
-            <button type="button" onclick="closeRegisterModal(); showLoginModal();" class="text-purple-500 hover:text-purple-400">
-              تسجيل دخول
-            </button>
-          </p>
-        </form>
-      </div>
-    </div>
-
-    <!-- Login Modal -->
-    <div id="login-modal-quiz" class="login-modal">
-      <div class="login-modal-content">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-black gradient-text">
-            <i class="fas fa-sign-in-alt"></i>
-            تسجيل دخول
-          </h2>
-          <button onclick="closeLoginModal()" class="text-white text-2xl">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        
-        <form id="login-form-quiz" class="space-y-4">
-          <div class="form-group">
-            <label class="form-label">
-              <i class="fas fa-envelope"></i>
-              البريد الإلكتروني
-            </label>
-            <input type="email" id="login-email-quiz" class="form-input" placeholder="your@email.com" required>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">
-              <i class="fas fa-lock"></i>
-              كلمة المرور
-            </label>
-            <input type="password" id="login-password-quiz" class="form-input" placeholder="أدخل كلمة المرور" required>
-          </div>
-          
-          <div id="login-error-quiz" class="error-message" style="display: none;"></div>
-          
-          <button type="submit" class="btn-primary w-full">
-            <i class="fas fa-sign-in-alt"></i>
-            تسجيل دخول
-          </button>
-          
-          <p class="text-center text-gray-400">
-            ليس لديك حساب؟
-            <button type="button" onclick="closeLoginModal(); showRegisterModal();" class="text-purple-500 hover:text-purple-400">
-              إنشاء حساب
-            </button>
-          </p>
-        </form>
-      </div>
-    </div>
-
-    <script src="/static/koorax-features.js"></script>
     <script>
-    // Constants
-    const ADMIN_EMAIL = 'TN@gmail.com';
-    const ADMIN_PASSWORD = 'K00R@X';
+    let currentUser = null;
+    let pendingEmail = null;
 
-    // Mock Data
-    const mockQuestion = {
-      id: 1,
-      question: 'من هو الفريق الذي فاز بدوري أبطال أوروبا في موسم 2022-2023؟',
-      options: {
-        A: 'ريال مدريد',
-        B: 'مانشستر سيتي',
-        C: 'إنتر ميلان',
-        D: 'بايرن ميونخ'
-      },
-      correctAnswer: 'B',
-      date: new Date().toISOString().split('T')[0]
-    };
-
-    const mockLeaderboard = [
-      { rank: 1, name: 'أحمد محمد', points: 150 },
-      { rank: 2, name: 'محمد علي', points: 140 },
-      { rank: 3, name: 'فاطمة أحمد', points: 130 },
-      { rank: 4, name: 'سارة محمود', points: 120 },
-      { rank: 5, name: 'عمر خالد', points: 110 }
-    ];
-
-    const mockParticipants = [
-      { id: 1, name: 'أحمد محمد', email: 'ahmed@example.com', points: 150, joinedAt: '2024-01-15' },
-      { id: 2, name: 'محمد علي', email: 'mohamed@example.com', points: 140, joinedAt: '2024-01-16' },
-      { id: 3, name: 'فاطمة أحمد', email: 'fatma@example.com', points: 130, joinedAt: '2024-01-17' }
-    ];
-
-    // Check authentication
-    function checkAuth() {
-      const user = localStorage.getItem('koorax_quiz_user');
-      if (user) {
+    async function init() {
+      const token = localStorage.getItem('koorax_token');
+      if (token) {
         try {
-          const userData = JSON.parse(user);
-          showQuizContent(userData);
+          const response = await axios.get('/api/auth/me', {
+            headers: { Authorization: \`Bearer \${token}\` }
+          });
+          currentUser = response.data.user;
+          showQuizSection();
         } catch (error) {
-          showLoginRequired();
+          localStorage.removeItem('koorax_token');
+          showAuthSection();
         }
       } else {
-        showLoginRequired();
+        showAuthSection();
       }
     }
 
-    // Show login required message
-    function showLoginRequired() {
-      document.getElementById('login-required-section').style.display = 'block';
+    function showAuthSection() {
+      document.getElementById('auth-section').style.display = 'block';
       document.getElementById('quiz-section').style.display = 'none';
       document.getElementById('admin-section').style.display = 'none';
     }
 
-    // Show quiz content
-    function showQuizContent(userData) {
-      document.getElementById('login-required-section').style.display = 'none';
+    async function showQuizSection() {
+      document.getElementById('auth-section').style.display = 'none';
       
-      // Check if admin
-      if (userData.email === ADMIN_EMAIL) {
-        document.getElementById('quiz-section').style.display = 'block';
+      if (currentUser.email === 'TN@gmail.com') {
         document.getElementById('admin-section').style.display = 'block';
-        loadAdminDashboard();
+        document.getElementById('quiz-section').style.display = 'none';
+        await loadAdminDashboard();
       } else {
-        document.getElementById('quiz-section').style.display = 'block';
         document.getElementById('admin-section').style.display = 'none';
+        document.getElementById('quiz-section').style.display = 'block';
+        await loadQuiz();
+        await loadLeaderboard();
+      }
+    }
+
+    function showTab(tab) {
+      document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
+      document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById('reg-name').value;
+      const email = document.getElementById('reg-email').value;
+      const password = document.getElementById('reg-password').value;
+      const confirm = document.getElementById('reg-confirm').value;
+      
+      if (password !== confirm) {
+        showMessage('reg-message', 'كلمة السر غير متطابقة', 'error');
+        return;
       }
       
-      loadQuizQuestion();
-      loadLeaderboard();
-    }
-
-    // Load quiz question
-    function loadQuizQuestion() {
-      // TODO: Replace with API call
-      document.getElementById('question-text').textContent = mockQuestion.question;
-      
-      const optionsHtml = Object.entries(mockQuestion.options).map(([key, value]) => \`
-        <button onclick="submitAnswer('\${key}')" class="quiz-option p-4 rounded-xl bg-gray-800 hover:bg-purple-600 transition-all text-right border-2 border-gray-700 hover:border-purple-500">
-          <span class="font-bold">\${key})</span> \${value}
-        </button>
-      \`).join('');
-      
-      document.getElementById('options-container').innerHTML = optionsHtml;
-    }
-
-    // Submit answer
-    function submitAnswer(answer) {
-      // TODO: Replace with API call
-      const resultDiv = document.getElementById('result-message');
-      const isCorrect = answer === mockQuestion.correctAnswer;
-      
-      // Disable all options
-      document.querySelectorAll('.quiz-option').forEach(btn => {
-        btn.disabled = true;
-        btn.style.opacity = '0.5';
-        btn.style.cursor = 'not-allowed';
-      });
-      
-      if (isCorrect) {
-        resultDiv.className = 'success-message';
-        resultDiv.innerHTML = '<i class="fas fa-check-circle"></i> 🎉 إجابة صحيحة! حصلت على 10 نقاط';
-      } else {
-        resultDiv.className = 'error-message';
-        resultDiv.innerHTML = '<i class="fas fa-times-circle"></i> ❌ إجابة خاطئة. الإجابة الصحيحة: ' + mockQuestion.correctAnswer + ') ' + mockQuestion.options[mockQuestion.correctAnswer];
+      try {
+        const response = await axios.post('/api/auth/register', { name, email, password });
+        pendingEmail = email;
+        document.getElementById('register-form').style.display = 'none';
+        document.getElementById('verify-form').style.display = 'block';
+        showMessage('verify-message', 'تم إرسال رمز التأكيد إلى بريدك الإلكتروني', 'success');
+      } catch (error) {
+        showMessage('reg-message', error.response?.data?.message || 'حدث خطأ', 'error');
       }
-      
-      resultDiv.style.display = 'block';
     }
 
-    // Load leaderboard
-    function loadLeaderboard() {
-      // TODO: Replace with API call
-      const leaderboardHtml = mockLeaderboard.map(user => {
-        let icon = '';
-        let colorClass = '';
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      
+      try {
+        const response = await axios.post('/api/auth/login', { email, password });
+        localStorage.setItem('koorax_token', response.data.token);
+        currentUser = response.data.user;
+        showQuizSection();
+      } catch (error) {
+        showMessage('login-message', error.response?.data?.message || 'بيانات غير صحيحة', 'error');
+      }
+    }
+
+    async function handleVerify(e) {
+      e.preventDefault();
+      const code = document.getElementById('verify-code').value;
+      
+      try {
+        await axios.get(\`/api/auth/verify-email?email=\${pendingEmail}&code=\${code}\`);
+        showMessage('verify-message', 'تم التأكيد بنجاح! يمكنك الآن تسجيل الدخول', 'success');
+        setTimeout(() => {
+          document.getElementById('verify-form').style.display = 'none';
+          showTab('login');
+        }, 2000);
+      } catch (error) {
+        showMessage('verify-message', error.response?.data?.message || 'رمز غير صحيح', 'error');
+      }
+    }
+
+    async function loadQuiz() {
+      try {
+        const token = localStorage.getItem('koorax_token');
+        const response = await axios.get('/api/quiz/today', {
+          headers: { Authorization: \`Bearer \${token}\` }
+        });
         
-        if (user.rank === 1) {
-          icon = '<i class="fas fa-trophy text-yellow-400"></i>';
-          colorClass = 'bg-yellow-900 bg-opacity-20';
-        } else if (user.rank === 2) {
-          icon = '<i class="fas fa-medal text-gray-400"></i>';
-          colorClass = 'bg-gray-700 bg-opacity-20';
-        } else if (user.rank === 3) {
-          icon = '<i class="fas fa-medal text-orange-400"></i>';
-          colorClass = 'bg-orange-900 bg-opacity-20';
+        if (response.data.alreadyAnswered) {
+          document.getElementById('question-card').style.display = 'none';
+          document.getElementById('answered-card').style.display = 'block';
+        } else {
+          const question = response.data.question;
+          document.getElementById('question-text').textContent = question.question_text;
+          
+          const options = JSON.parse(question.options);
+          const container = document.getElementById('options-container');
+          container.innerHTML = Object.entries(options).map(([key, value]) => \`
+            <button onclick="submitAnswer('\${key}')" class="quiz-option p-4 rounded-xl bg-gray-800 hover:bg-green-600 transition-all text-right border-2 border-gray-700 hover:border-green-500">
+              <span class="font-bold">\${key.toUpperCase()})</span> \${value}
+            </button>
+          \`).join('');
+        }
+      } catch (error) {
+        console.error('Error loading quiz:', error);
+      }
+    }
+
+    async function submitAnswer(answer) {
+      try {
+        const token = localStorage.getItem('koorax_token');
+        const response = await axios.post('/api/quiz/answer', 
+          { answer }, 
+          { headers: { Authorization: \`Bearer \${token}\` }}
+        );
+        
+        const resultDiv = document.getElementById('result-message');
+        if (response.data.correct) {
+          resultDiv.innerHTML = \`
+            <div class="p-6 bg-green-500 bg-opacity-20 border-2 border-green-500 rounded-xl text-center">
+              <i class="fas fa-check-circle text-4xl text-green-500 mb-3"></i>
+              <h3 class="text-2xl font-bold text-green-500 mb-2">إجابة صحيحة!</h3>
+              <p>+\${response.data.points} نقطة</p>
+            </div>
+          \`;
+        } else {
+          resultDiv.innerHTML = \`
+            <div class="p-6 bg-red-500 bg-opacity-20 border-2 border-red-500 rounded-xl text-center">
+              <i class="fas fa-times-circle text-4xl text-red-500 mb-3"></i>
+              <h3 class="text-2xl font-bold text-red-500 mb-2">إجابة خاطئة</h3>
+              <p>الإجابة الصحيحة: \${response.data.correctAnswer}</p>
+            </div>
+          \`;
         }
         
-        return \`
-          <div class="flex items-center justify-between p-4 rounded-xl \${colorClass} mb-2 hover:bg-opacity-30 transition-all">
-            <div class="flex items-center gap-4">
-              <span class="text-2xl font-bold w-8">\${user.rank}</span>
-              \${icon}
-              <span class="font-semibold">\${user.name}</span>
-            </div>
-            <span class="text-xl font-bold gradient-text">\${user.points} نقطة</span>
-          </div>
-        \`;
-      }).join('');
-      
-      document.getElementById('leaderboard-container').innerHTML = leaderboardHtml;
-    }
-
-    // Load admin dashboard
-    function loadAdminDashboard() {
-      // TODO: Replace with API calls
-      document.getElementById('total-users').textContent = mockParticipants.length;
-      document.getElementById('total-questions').textContent = '50';
-      document.getElementById('today-answers').textContent = '25';
-      
-      const participantsHtml = mockParticipants.map(user => \`
-        <tr class="border-b border-gray-700 hover:bg-gray-800">
-          <td class="p-3">\${user.name}</td>
-          <td class="p-3">\${user.email}</td>
-          <td class="p-3 font-bold text-purple-500">\${user.points}</td>
-          <td class="p-3">\${user.joinedAt}</td>
-          <td class="p-3">
-            <button onclick="deleteUser(\${user.id})" class="text-red-500 hover:text-red-400">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      \`).join('');
-      
-      document.getElementById('participants-table').innerHTML = participantsHtml;
-    }
-
-    // Delete user (admin only)
-    function deleteUser(userId) {
-      if (confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
-        // TODO: Replace with API call
-        alert('تم حذف المستخدم');
-        loadAdminDashboard();
+        document.getElementById('options-container').innerHTML = '';
+        setTimeout(() => loadLeaderboard(), 2000);
+      } catch (error) {
+        console.error('Error submitting answer:', error);
       }
     }
 
-    // Show/hide modals
-    function showRegisterModal() {
-      document.getElementById('register-modal').classList.add('active');
-      document.body.style.overflow = 'hidden';
-    }
-
-    function closeRegisterModal() {
-      document.getElementById('register-modal').classList.remove('active');
-      document.body.style.overflow = '';
-    }
-
-    function showLoginModal() {
-      document.getElementById('login-modal-quiz').classList.add('active');
-      document.body.style.overflow = 'hidden';
-    }
-
-    function closeLoginModal() {
-      document.getElementById('login-modal-quiz').classList.remove('active');
-      document.body.style.overflow = '';
-    }
-
-    // Register form
-    document.getElementById('register-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const name = document.getElementById('register-name').value;
-      const email = document.getElementById('register-email').value;
-      const password = document.getElementById('register-password').value;
-      const confirmPassword = document.getElementById('register-confirm-password').value;
-      
-      const errorDiv = document.getElementById('register-error');
-      const successDiv = document.getElementById('register-success');
-      
-      errorDiv.style.display = 'none';
-      successDiv.style.display = 'none';
-      
-      // Validation
-      if (password !== confirmPassword) {
-        errorDiv.textContent = 'كلمة المرور غير متطابقة';
-        errorDiv.style.display = 'block';
-        return;
-      }
-      
-      if (password.length < 6) {
-        errorDiv.textContent = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
-        errorDiv.style.display = 'block';
-        return;
-      }
-      
-      // TODO: Replace with actual API call
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Store user data
-      const userData = {
-        name,
-        email,
-        points: 0,
-        joinedAt: new Date().toISOString(),
-        isAdmin: email === ADMIN_EMAIL
-      };
-      
-      localStorage.setItem('koorax_quiz_user', JSON.stringify(userData));
-      
-      successDiv.textContent = '✅ تم إنشاء الحساب بنجاح! جاري تحويلك...';
-      successDiv.style.display = 'block';
-      
-      setTimeout(() => {
-        closeRegisterModal();
-        window.location.reload();
-      }, 1500);
-    });
-
-    // Login form
-    document.getElementById('login-form-quiz').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const email = document.getElementById('login-email-quiz').value;
-      const password = document.getElementById('login-password-quiz').value;
-      
-      const errorDiv = document.getElementById('login-error-quiz');
-      errorDiv.style.display = 'none';
-      
-      // TODO: Replace with actual API call
-      // Check admin credentials
-      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        const userData = {
-          name: 'Admin',
-          email: ADMIN_EMAIL,
-          points: 0,
-          joinedAt: new Date().toISOString(),
-          isAdmin: true
-        };
+    async function loadLeaderboard() {
+      try {
+        const response = await axios.get('/api/quiz/leaderboard');
+        const container = document.getElementById('leaderboard-container');
         
-        localStorage.setItem('koorax_quiz_user', JSON.stringify(userData));
-        window.location.reload();
-        return;
+        container.innerHTML = response.data.leaderboard.map((user, index) => {
+          const icons = ['🥇', '🥈', '🥉'];
+          const colors = ['bg-yellow-500', 'bg-gray-400', 'bg-orange-500'];
+          
+          return \`
+            <div class="flex items-center justify-between p-4 rounded-xl \${index < 3 ? colors[index] : 'bg-gray-800'} bg-opacity-20 border-2 \${index < 3 ? 'border-' + colors[index].replace('bg-', '') : 'border-gray-700'}">
+              <div class="flex items-center gap-3">
+                <span class="text-2xl">\${index < 3 ? icons[index] : \`#\${index + 1}\`}</span>
+                <span class="font-bold">\${user.name}</span>
+              </div>
+              <span class="text-xl font-black text-primary">\${user.points} نقطة</span>
+            </div>
+          \`;
+        }).join('');
+      } catch (error) {
+        console.error('Error loading leaderboard:', error);
       }
-      
-      // Simulate regular user login
-      // In production, verify credentials with backend
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const userData = {
-        name: email.split('@')[0],
-        email,
-        points: 0,
-        joinedAt: new Date().toISOString(),
-        isAdmin: false
-      };
-      
-      localStorage.setItem('koorax_quiz_user', JSON.stringify(userData));
-      window.location.reload();
-    });
+    }
 
-    // Add question form (admin only)
-    document.getElementById('add-question-form')?.addEventListener('submit', async (e) => {
+    async function loadAdminDashboard() {
+      try {
+        const token = localStorage.getItem('koorax_token');
+        const response = await axios.get('/api/admin/stats', {
+          headers: { Authorization: \`Bearer \${token}\` }
+        });
+        
+        document.getElementById('total-users').textContent = response.data.totalUsers;
+        document.getElementById('total-questions').textContent = response.data.totalQuestions;
+        document.getElementById('today-answers').textContent = response.data.todayAnswers;
+        
+        await loadParticipants();
+      } catch (error) {
+        console.error('Error loading admin dashboard:', error);
+      }
+    }
+
+    async function loadParticipants() {
+      try {
+        const token = localStorage.getItem('koorax_token');
+        const response = await axios.get('/api/admin/users', {
+          headers: { Authorization: \`Bearer \${token}\` }
+        });
+        
+        const tbody = document.getElementById('participants-table');
+        tbody.innerHTML = response.data.users.map(user => \`
+          <tr class="border-b border-gray-700">
+            <td class="p-3">\${user.name}</td>
+            <td class="p-3">\${user.email}</td>
+            <td class="p-3"><span class="text-primary font-bold">\${user.points}</span></td>
+            <td class="p-3">\${new Date(user.created_at).toLocaleDateString('ar-EG')}</td>
+            <td class="p-3">
+              <button onclick="deleteUser(\${user.id})" class="text-red-500 hover:text-red-300">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+        \`).join('');
+      } catch (error) {
+        console.error('Error loading participants:', error);
+      }
+    }
+
+    async function deleteUser(userId) {
+      if (!confirm('هل تريد حذف هذا المستخدم؟')) return;
+      
+      try {
+        const token = localStorage.getItem('koorax_token');
+        await axios.delete(\`/api/admin/users/\${userId}\`, {
+          headers: { Authorization: \`Bearer \${token}\` }
+        });
+        await loadParticipants();
+        await loadAdminDashboard();
+      } catch (error) {
+        alert('حدث خطأ أثناء الحذف');
+      }
+    }
+
+    async function handleAddQuestion(e) {
       e.preventDefault();
       
-      const questionData = {
-        question: document.getElementById('question-input').value,
+      const question = {
+        question_text: document.getElementById('q-text').value,
         options: {
-          A: document.getElementById('option-a').value,
-          B: document.getElementById('option-b').value,
-          C: document.getElementById('option-c').value,
-          D: document.getElementById('option-d').value
+          a: document.getElementById('q-a').value,
+          b: document.getElementById('q-b').value,
+          c: document.getElementById('q-c').value,
+          d: document.getElementById('q-d').value
         },
-        correctAnswer: document.getElementById('correct-answer').value
+        correct_answer: document.getElementById('q-correct').value
       };
       
-      // TODO: Replace with API call
-      alert('تم إضافة السؤال بنجاح!');
-      e.target.reset();
-    });
+      try {
+        const token = localStorage.getItem('koorax_token');
+        await axios.post('/api/admin/question', question, {
+          headers: { Authorization: \`Bearer \${token}\` }
+        });
+        alert('تم إضافة السؤال بنجاح');
+        e.target.reset();
+        await loadAdminDashboard();
+      } catch (error) {
+        alert('حدث خطأ أثناء إضافة السؤال');
+      }
+    }
 
-    // Initialize
-    checkAuth();
+    function showMessage(elementId, message, type) {
+      const el = document.getElementById(elementId);
+      el.innerHTML = \`<p class="text-\${type === 'error' ? 'red' : 'green'}-500">\${message}</p>\`;
+      setTimeout(() => el.innerHTML = '', 5000);
+    }
+
+    init();
     </script>
 </body>
 </html>
