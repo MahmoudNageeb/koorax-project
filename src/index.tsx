@@ -114,20 +114,20 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 }
 
 // Helper: Generate simple token
-function generateToken(userId: number, email: string): string {
-  const payload = JSON.stringify({ userId, email, timestamp: Date.now() });
+function generateToken(userId: number, email: string, isAdmin: boolean = false): string {
+  const payload = JSON.stringify({ userId, email, isAdmin, timestamp: Date.now() });
   return btoa(payload);
 }
 
 // Helper: Verify token
-function verifyToken(token: string): { userId: number; email: string } | null {
+function verifyToken(token: string): { userId: number; email: string; isAdmin?: boolean } | null {
   try {
     const payload = JSON.parse(atob(token));
     // Simple validation: check if token is not too old (24 hours)
     if (Date.now() - payload.timestamp > 24 * 60 * 60 * 1000) {
       return null;
     }
-    return { userId: payload.userId, email: payload.email };
+    return { userId: payload.userId, email: payload.email, isAdmin: payload.isAdmin };
   } catch {
     return null;
   }
@@ -235,7 +235,7 @@ app.post('/api/auth/login', async (c) => {
       return c.json({ error: 'يجب تأكيد البريد الإلكتروني أولاً' }, 403);
     }
     
-    const token = generateToken(user.id, user.email);
+    const token = generateToken(user.id, user.email, user.is_admin === 1);
     
     return c.json({
       success: true,
@@ -507,9 +507,8 @@ app.get('/api/admin/stats', async (c) => {
     const today = new Date().toISOString().split('T')[0];
     const todayAnswers = await c.env.DB.prepare(`
       SELECT COUNT(*) as count 
-      FROM user_answers ua
-      JOIN quiz_questions q ON ua.question_id = q.id
-      WHERE q.quiz_date = ?
+      FROM user_answers 
+      WHERE DATE(answered_at/1000, 'unixepoch') = ?
     `).bind(today).first();
     
     return c.json({
@@ -2998,7 +2997,7 @@ app.get('/quiz', (c) => {
     </style>
 </head>
 <body>
-    \${getEnhancedHeader('quiz')}
+    ${getEnhancedHeader('quiz')}
     
     <div class="container mx-auto px-4 py-6">
         <!-- Auth Section -->
