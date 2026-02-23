@@ -158,10 +158,7 @@ app.post('/api/auth/register', async (c) => {
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     
     // Create user with email already verified (auto-verification)
-    await c.env.DB.prepare(`
-      INSERT INTO users (name, email, password_hash, verification_token, email_verified)
-      VALUES (?, ?, ?, ?, 1)
-    `).bind(name, email, passwordHash, verificationCode).run();
+    await c.env.DB.prepare("INSERT INTO users (name, email, password_hash, verification_token, email_verified) VALUES (?, ?, ?, ?, 1)").bind(name, email, passwordHash, verificationCode).run();
     
     console.log(`User ${email} registered successfully`);
     
@@ -318,14 +315,22 @@ app.get('/api/quiz/today', async (c) => {
   try {
     const today = new Date().toISOString().split('T')[0];
     
-    const question = await c.env.DB.prepare(`
-      SELECT id, question, option_a, option_b, option_c, option_d, quiz_date
-      FROM quiz_questions 
-      WHERE quiz_date = ?
-    `).bind(today).first();
+    const question = await c.env.DB.prepare("SELECT id, question_text, options, correct_answer FROM quiz_questions ORDER BY id DESC LIMIT 1").first();
     
     if (!question) {
-      return c.json({ error: 'لا يوجد سؤال لهذا اليوم' }, 404);
+      return c.json({ error: 'لا يوجد سؤال متاح حالياً' }, 404);
+    }
+    
+    // Parse options if stored as JSON string
+    let options;
+    if (typeof question.options === 'string') {
+      try {
+        options = JSON.parse(question.options);
+      } catch (e) {
+        options = question.options;
+      }
+    } else {
+      options = question.options;
     }
     
     // Check if user already answered (if authenticated)
@@ -337,10 +342,7 @@ app.get('/api/quiz/today', async (c) => {
         const token = authHeader.substring(7);
         const decoded = verifyToken(token);
         
-        const answer = await c.env.DB.prepare(`
-          SELECT id FROM user_answers 
-          WHERE user_id = ? AND question_id = ?
-        `).bind(decoded.userId, question.id).first();
+        const answer = await c.env.DB.prepare("SELECT id FROM user_answers WHERE user_id = ? AND question_id = ?").bind(decoded.userId, question.id).first();
         
         alreadyAnswered = !!answer;
       } catch (e) {
@@ -350,14 +352,8 @@ app.get('/api/quiz/today', async (c) => {
     
     return c.json({
       id: question.id,
-      question: question.question,
-      options: {
-        A: question.option_a,
-        B: question.option_b,
-        C: question.option_c,
-        D: question.option_d
-      },
-      date: question.quiz_date,
+      question: question.question_text,
+      options: options,
       alreadyAnswered
     });
     
@@ -385,21 +381,14 @@ app.post('/api/quiz/answer', async (c) => {
     }
     
     // Get question
-    const question = await c.env.DB.prepare(`
-      SELECT id, correct_answer, quiz_date 
-      FROM quiz_questions 
-      WHERE id = ?
-    `).bind(questionId).first();
+    const question = await c.env.DB.prepare("SELECT id, correct_answer FROM quiz_questions WHERE id = ?").bind(questionId).first();
     
     if (!question) {
       return c.json({ error: 'السؤال غير موجود' }, 404);
     }
     
     // Check if already answered
-    const existing = await c.env.DB.prepare(`
-      SELECT id FROM user_answers 
-      WHERE user_id = ? AND question_id = ?
-    `).bind(decoded.userId, questionId).first();
+    const existing = await c.env.DB.prepare("SELECT id FROM user_answers WHERE user_id = ? AND question_id = ?").bind(decoded.userId, questionId).first();
     
     if (existing) {
       return c.json({ error: 'لقد أجبت على هذا السؤال مسبقاً' }, 400);
@@ -410,16 +399,11 @@ app.post('/api/quiz/answer', async (c) => {
     const pointsEarned = isCorrect ? 10 : 0;
     
     // Save answer
-    await c.env.DB.prepare(`
-      INSERT INTO user_answers (user_id, question_id, answer, is_correct, points_earned)
-      VALUES (?, ?, ?, ?, ?)
-    `).bind(decoded.userId, questionId, answer, isCorrect ? 1 : 0, pointsEarned).run();
+    await c.env.DB.prepare("INSERT INTO user_answers (user_id, question_id, answer, is_correct, points_earned) VALUES (?, ?, ?, ?, ?)").bind(decoded.userId, questionId, answer, isCorrect ? 1 : 0, pointsEarned).run();
     
     // Update user points
     if (isCorrect) {
-      await c.env.DB.prepare(`
-        UPDATE users SET points = points + ? WHERE id = ?
-      `).bind(pointsEarned, decoded.userId).run();
+      await c.env.DB.prepare("UPDATE users SET points = points + ? WHERE id = ?").bind(pointsEarned, decoded.userId).run();
     }
     
     return c.json({
