@@ -157,17 +157,17 @@ app.post('/api/auth/register', async (c) => {
     const passwordHash = await hashPassword(password);
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     
+    // Create user with email already verified (auto-verification)
     await c.env.DB.prepare(`
       INSERT INTO users (name, email, password_hash, verification_token, email_verified)
-      VALUES (?, ?, ?, ?, 0)
+      VALUES (?, ?, ?, ?, 1)
     `).bind(name, email, passwordHash, verificationCode).run();
     
-    console.log(`Verification code for ${email}: ${verificationCode}`);
+    console.log(`User ${email} registered successfully`);
     
     return c.json({ 
       success: true, 
-      message: 'تم إرسال رمز التأكيد إلى بريدك الإلكتروني',
-      verificationCode
+      message: 'تم إنشاء الحساب بنجاح'
     });
   } catch (error: any) {
     console.error('Register error:', error);
@@ -1078,7 +1078,7 @@ function getEnhancedHeader(currentPage: string = '') {
     <div id="mobile-user-section">
       <button onclick="kooraxShowLogin(); kooraxCloseMobileMenu();" class="btn-primary w-full" id="mobile-login-btn">
         <i class="fas fa-user"></i>
-        <span data-translate="login">تسجيل دخول</span>
+        <span data-translate="login">دخول</span>
       </button>
       <div class="user-profile" id="mobile-user-profile" style="display: none;">
         <div class="user-avatar" id="mobile-user-avatar"></div>
@@ -3075,23 +3075,7 @@ app.get('/quiz', (c) => {
             </form>
           </div>
           
-          <!-- Email Verification -->
-          <div id="verify-form" class="glass-card p-8 rounded-2xl mt-6" style="display: none;">
-            <h3 class="text-2xl font-bold mb-6 text-center gradient-text">تأكيد البريد الإلكتروني</h3>
-            <p class="text-center mb-6 text-gray-400">تم إرسال رمز التأكيد إلى بريدك الإلكتروني</p>
-            <p class="text-center mb-6 text-sm text-gray-500">للتجربة: الرمز هو <span class="font-bold text-primary">123456</span></p>
-            <form onsubmit="handleVerify(event)">
-              <div class="form-group mb-4">
-                <label class="form-label">رمز التأكيد</label>
-                <input type="text" id="verify-code" class="form-input text-center text-2xl" required maxlength="6" pattern="[0-9]{6}">
-              </div>
-              <div id="verify-message" class="text-center mb-4"></div>
-              <button type="submit" class="btn-primary w-full">
-                <i class="fas fa-check"></i>
-                تأكيد
-              </button>
-            </form>
-          </div>
+
         </div>
 
         <!-- Quiz Section -->
@@ -3216,7 +3200,6 @@ app.get('/quiz', (c) => {
 
     <script>
     let currentUser = null;
-    let pendingEmail = null;
 
     async function init() {
       const token = localStorage.getItem('koorax_token');
@@ -3275,11 +3258,22 @@ app.get('/quiz', (c) => {
       }
       
       try {
-        const response = await axios.post('/api/auth/register', { name, email, password });
-        pendingEmail = email;
-        document.getElementById('register-form').style.display = 'none';
-        document.getElementById('verify-form').style.display = 'block';
-        showMessage('verify-message', 'تم إرسال رمز التأكيد إلى بريدك الإلكتروني', 'success');
+        // Register the user
+        const registerResponse = await axios.post('/api/auth/register', { name, email, password });
+        showMessage('reg-message', 'تم إنشاء الحساب بنجاح!', 'success');
+        
+        // Auto login after successful registration
+        setTimeout(async () => {
+          try {
+            const loginResponse = await axios.post('/api/auth/login', { email, password });
+            localStorage.setItem('koorax_token', loginResponse.data.token);
+            currentUser = loginResponse.data.user;
+            showQuizSection();
+          } catch (loginError) {
+            showMessage('reg-message', 'تم إنشاء الحساب، يرجى تسجيل الدخول', 'success');
+            setTimeout(() => showTab('login'), 2000);
+          }
+        }, 1000);
       } catch (error) {
         showMessage('reg-message', error.response?.data?.message || 'حدث خطأ', 'error');
       }
@@ -3297,22 +3291,6 @@ app.get('/quiz', (c) => {
         showQuizSection();
       } catch (error) {
         showMessage('login-message', error.response?.data?.message || 'بيانات غير صحيحة', 'error');
-      }
-    }
-
-    async function handleVerify(e) {
-      e.preventDefault();
-      const code = document.getElementById('verify-code').value;
-      
-      try {
-        await axios.get(\`/api/auth/verify-email?email=\${pendingEmail}&code=\${code}\`);
-        showMessage('verify-message', 'تم التأكيد بنجاح! يمكنك الآن تسجيل الدخول', 'success');
-        setTimeout(() => {
-          document.getElementById('verify-form').style.display = 'none';
-          showTab('login');
-        }, 2000);
-      } catch (error) {
-        showMessage('verify-message', error.response?.data?.message || 'رمز غير صحيح', 'error');
       }
     }
 
