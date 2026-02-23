@@ -36,11 +36,11 @@
 
 ### 🔐 نظام المصادقة
 - **تسجيل جديد**: اسم + بريد + كلمة سر (6 أحرف+)
-- **تحقق من الإيميل**: رمز 6 أرقام (يظهر في console للتجربة)
-- **تسجيل دخول**: بريد + كلمة سر
+- **تسجيل دخول تلقائي**: بعد التسجيل مباشرة
 - **تشفير SHA-256** لكلمات المرور
 - **Token مخصص** (صالح 24 ساعة)
 - **حماية الصفحات**: /quiz يتطلب تسجيل دخول
+- **منع التكرار**: لا يمكن التسجيل بنفس البريد مرتين
 
 ---
 
@@ -129,9 +129,6 @@
 ```
 POST /api/auth/register
   Body: { name, email, password }
-  Response: { success, message, verificationCode }
-
-GET /api/auth/verify-email?email=...&code=...
   Response: { success, message }
 
 POST /api/auth/login
@@ -261,8 +258,8 @@ npx wrangler pages secret put FOOTBALL_API_TOKEN --project-name koorax
 
 ## 📊 الإحصائيات
 
-- **حجم الحزمة**: 152.69 KB
-- **عدد الأسطر**: 3,400+
+- **حجم الحزمة**: 151.22 KB
+- **عدد الأسطر**: 3,380+
 - **Dependencies**: Hono + Vite + TypeScript
 - **قاعدة البيانات**: Cloudflare D1 (SQLite)
 - **Auth**: Web Crypto API (SHA-256)
@@ -274,21 +271,23 @@ npx wrangler pages secret put FOOTBALL_API_TOKEN --project-name koorax
 
 - ✅ **تشفير كلمات المرور**: SHA-256
 - ✅ **Token Authentication**: 24h expiry
-- ✅ **تحقق من الإيميل**: رمز 6 أرقام
+- ✅ **تسجيل تلقائي**: بعد إنشاء الحساب مباشرة
 - ✅ **حماية API**: Bearer Token
 - ✅ **Admin Protection**: is_admin flag
 - ✅ **SQL Injection**: Prepared Statements
 - ✅ **CORS**: مفعّل
+- ✅ **منع التكرار**: فحص البريد قبل التسجيل
 
 ---
 
 ## 📝 ملاحظات مهمة
 
 ### للمستخدمين
-- يجب تأكيد البريد قبل تسجيل الدخول
+- التسجيل الدخول تلقائي بعد إنشاء الحساب
 - سؤال واحد فقط كل يوم
 - الإجابة الصحيحة = +10 نقاط
 - لا يمكن تغيير الإجابة
+- لا يمكن التسجيل بنفس البريد مرتين
 
 ### للـ Admins
 - يمكن إضافة أسئلة غير محدودة
@@ -297,8 +296,8 @@ npx wrangler pages secret put FOOTBALL_API_TOKEN --project-name koorax
 
 ### للمطورين
 - استخدم `.dev.vars` للمتغيرات المحلية
-- الـ Token في الـ console فقط (للتجربة)
-- في Production: أضف SendGrid للإيميلات الحقيقية
+- في Production: يمكن إضافة SendGrid للإيميلات إذا أردت
+- نظام التسجيل بسيط ومباشر
 
 ---
 
@@ -307,8 +306,9 @@ npx wrangler pages secret put FOOTBALL_API_TOKEN --project-name koorax
 ### مشاكل شائعة
 
 **لا أستطيع تسجيل الدخول**:
-- تأكد من تأكيد البريد (الرمز في console)
-- تأكد من كلمة المرور (6 أحرف على الأقل)
+- تأكد من البريد وكلمة المرور الصحيحة
+- كلمة المرور يجب أن تكون 6 أحرف على الأقل
+- إذا سجلت مسبقاً، استخدم تسجيل الدخول وليس إنشاء حساب
 
 **لا أرى Dashboard**:
 - تأكد من أن is_admin = 1 في قاعدة البيانات
