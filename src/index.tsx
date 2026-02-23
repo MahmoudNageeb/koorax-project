@@ -311,17 +311,6 @@ app.get('/api/matches', async (c) => {
 });
 
 // Get match by ID
-app.get('/api/matches/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const match = await getMatchById(id, c.env.FOOTBALL_API_TOKEN);
-    return c.json(match);
-  } catch (error) {
-    console.error('Match error:', error);
-    return c.json({ error: 'Failed to fetch match' }, 500);
-  }
-});
-
 // ===== QUIZ APIs =====
 
 // Get today's question
@@ -545,7 +534,7 @@ app.get('/api/admin/users', async (c) => {
       ORDER BY created_at DESC
     `).all();
     
-    return c.json(result.results);
+    return c.json({ users: result.results });
     
   } catch (error) {
     console.error('Get users error:', error);
@@ -593,24 +582,24 @@ app.post('/api/admin/question', async (c) => {
     const token = authHeader.substring(7);
     const decoded = verifyToken(token);
     
-    if (!decoded.isAdmin) {
+    if (!decoded || !decoded.isAdmin) {
       return c.json({ error: 'غير مصرح للوصول' }, 403);
     }
     
-    const { question, optionA, optionB, optionC, optionD, correctAnswer, quizDate } = await c.req.json();
+    const { question_text, options, correct_answer } = await c.req.json();
     
-    if (!question || !optionA || !optionB || !optionC || !optionD || !correctAnswer || !quizDate) {
+    if (!question_text || !options || !correct_answer) {
       return c.json({ error: 'جميع الحقول مطلوبة' }, 400);
     }
     
-    if (!['A', 'B', 'C', 'D'].includes(correctAnswer)) {
-      return c.json({ error: 'الإجابة الصحيحة يجب أن تكون A أو B أو C أو D' }, 400);
+    if (!['a', 'b', 'c', 'd'].includes(correct_answer.toLowerCase())) {
+      return c.json({ error: 'الإجابة الصحيحة يجب أن تكون a أو b أو c أو d' }, 400);
     }
     
     const result = await c.env.DB.prepare(`
-      INSERT INTO quiz_questions (question, option_a, option_b, option_c, option_d, correct_answer, quiz_date, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(question, optionA, optionB, optionC, optionD, correctAnswer, quizDate, decoded.userId).run();
+      INSERT INTO quiz_questions (question_text, options, correct_answer)
+      VALUES (?, ?, ?)
+    `).bind(question_text, JSON.stringify(options), correct_answer.toLowerCase()).run();
     
     return c.json({ 
       success: true, 
@@ -619,10 +608,95 @@ app.post('/api/admin/question', async (c) => {
     
   } catch (error: any) {
     console.error('Add question error:', error);
-    if (error.message?.includes('UNIQUE')) {
-      return c.json({ error: 'يوجد سؤال بالفعل لهذا التاريخ' }, 400);
-    }
     return c.json({ error: 'حدث خطأ أثناء إضافة السؤال' }, 500);
+  }
+});
+
+// Get analytics (admin only)
+app.get('/api/admin/analytics', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'غير مصرح' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+    
+    if (!decoded || !decoded.isAdmin) {
+      return c.json({ error: 'غير مصرح للوصول' }, 403);
+    }
+    
+    // Get success rate
+    const totalAnswers = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count FROM user_answers
+    `).first();
+    
+    const correctAnswers = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count FROM user_answers WHERE is_correct = 1
+    `).first();
+    
+    const wrongAnswers = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count FROM user_answers WHERE is_correct = 0
+    `).first();
+    
+    // Get top participants
+    const topParticipants = await c.env.DB.prepare(`
+      SELECT name, points FROM users 
+      WHERE is_admin = 0 
+      ORDER BY points DESC 
+      LIMIT 5
+    `).all();
+    
+    // Get active today
+    const today = new Date().toISOString().split('T')[0];
+    const activeToday = await c.env.DB.prepare(`
+      SELECT COUNT(DISTINCT user_id) as count 
+      FROM user_answers 
+      WHERE DATE(answered_at/1000, 'unixepoch') = ?
+    `).bind(today).first();
+    
+    // Get average points
+    const avgPoints = await c.env.DB.prepare(`
+      SELECT AVG(points) as avg FROM users WHERE is_admin = 0
+    `).first();
+    
+    // Get participation rate
+    const totalUsers = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count FROM users WHERE is_admin = 0
+    `).first();
+    
+    const participationRate = totalUsers.count > 0 
+      ? Math.round((activeToday.count / totalUsers.count) * 100) 
+      : 0;
+    
+    // Get new users (registered today)
+    const newUsers = await c.env.DB.prepare(`
+      SELECT COUNT(*) as count 
+      FROM users 
+      WHERE DATE(created_at, 'unixepoch') = ? AND is_admin = 0
+    `).bind(today).first();
+    
+    return c.json({
+      totalAnswers: totalAnswers.count || 0,
+      correctAnswers: correctAnswers.count || 0,
+      wrongAnswers: wrongAnswers.count || 0,
+      correctPercent: totalAnswers.count > 0 
+        ? Math.round((correctAnswers.count / totalAnswers.count) * 100) 
+        : 0,
+      wrongPercent: totalAnswers.count > 0 
+        ? Math.round((wrongAnswers.count / totalAnswers.count) * 100) 
+        : 0,
+      topParticipants: topParticipants.results,
+      activeToday: activeToday.count || 0,
+      avgPoints: Math.round(avgPoints.avg || 0),
+      participationRate,
+      newUsers: newUsers.count || 0
+    });
+    
+  } catch (error) {
+    console.error('Get analytics error:', error);
+    return c.json({ error: 'حدث خطأ' }, 500);
   }
 });
 
@@ -3134,6 +3208,74 @@ app.get('/quiz', (c) => {
               </div>
             </div>
             
+            <!-- Analytics Section -->
+            <div class="mb-6">
+              <h3 class="text-xl font-bold mb-4">
+                <i class="fas fa-chart-bar mr-2"></i>
+                تحليل المتسابقين
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="glass-card p-4 rounded-xl">
+                  <h4 class="text-lg font-semibold mb-3">نسبة النجاح</h4>
+                  <div class="mb-2">
+                    <div class="flex justify-between text-sm mb-1">
+                      <span>إجابات صحيحة</span>
+                      <span id="correct-answers-percent">0%</span>
+                    </div>
+                    <div class="stat-bar">
+                      <div class="stat-fill bg-green-500" id="correct-answers-bar" style="width: 0%"></div>
+                    </div>
+                  </div>
+                  <div class="mb-2">
+                    <div class="flex justify-between text-sm mb-1">
+                      <span>إجابات خاطئة</span>
+                      <span id="wrong-answers-percent">0%</span>
+                    </div>
+                    <div class="stat-bar">
+                      <div class="stat-fill bg-red-500" id="wrong-answers-bar" style="width: 0%"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="glass-card p-4 rounded-xl">
+                  <h4 class="text-lg font-semibold mb-3">أفضل المتسابقين</h4>
+                  <div id="top-participants" class="space-y-2"></div>
+                </div>
+                
+                <div class="glass-card p-4 rounded-xl">
+                  <h4 class="text-lg font-semibold mb-3">نشاط المتسابقين</h4>
+                  <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                      <span>نشط اليوم</span>
+                      <span class="text-primary font-bold" id="active-today">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span>إجمالي الإجابات</span>
+                      <span class="text-primary font-bold" id="total-answers">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span>متوسط النقاط</span>
+                      <span class="text-primary font-bold" id="avg-points">0</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="glass-card p-4 rounded-xl">
+                  <h4 class="text-lg font-semibold mb-3">معدل المشاركة</h4>
+                  <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                      <span>معدل مشاركة يومي</span>
+                      <span class="text-primary font-bold" id="participation-rate">0%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span>مستخدمون جدد</span>
+                      <span class="text-green-500 font-bold" id="new-users">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             <div class="mb-6">
               <h3 class="text-xl font-bold mb-4">المتسابقون</h3>
               <div class="overflow-x-auto">
@@ -3389,9 +3531,50 @@ app.get('/quiz', (c) => {
         document.getElementById('total-questions').textContent = response.data.totalQuestions;
         document.getElementById('today-answers').textContent = response.data.todayAnswers;
         
+        await loadAnalytics();
         await loadParticipants();
       } catch (error) {
         console.error('Error loading admin dashboard:', error);
+      }
+    }
+    
+    async function loadAnalytics() {
+      try {
+        const token = localStorage.getItem('koorax_token');
+        const response = await axios.get('/api/admin/analytics', {
+          headers: { Authorization: \`Bearer \${token}\` }
+        });
+        
+        const data = response.data;
+        
+        // Success rate
+        document.getElementById('correct-answers-percent').textContent = data.correctPercent + '%';
+        document.getElementById('correct-answers-bar').style.width = data.correctPercent + '%';
+        document.getElementById('wrong-answers-percent').textContent = data.wrongPercent + '%';
+        document.getElementById('wrong-answers-bar').style.width = data.wrongPercent + '%';
+        
+        // Top participants
+        const topHtml = data.topParticipants.map((user, idx) => \`
+          <div class="flex items-center justify-between p-2 bg-gray-800 rounded-lg">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">\${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🏅'}</span>
+              <span class="font-semibold">\${user.name}</span>
+            </div>
+            <span class="text-primary font-bold">\${user.points} نقطة</span>
+          </div>
+        \`).join('');
+        document.getElementById('top-participants').innerHTML = topHtml || '<p class="text-center text-gray-500">لا يوجد متسابقون</p>';
+        
+        // Activity
+        document.getElementById('active-today').textContent = data.activeToday;
+        document.getElementById('total-answers').textContent = data.totalAnswers;
+        document.getElementById('avg-points').textContent = data.avgPoints;
+        
+        // Participation
+        document.getElementById('participation-rate').textContent = data.participationRate + '%';
+        document.getElementById('new-users').textContent = data.newUsers;
+      } catch (error) {
+        console.error('Error loading analytics:', error);
       }
     }
 
