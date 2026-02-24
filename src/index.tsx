@@ -1567,8 +1567,16 @@ app.get('/', (c) => {
         \`;
       }
       
-      loadHomeMatches();
-      setInterval(loadHomeMatches, 60000); // Refresh every minute
+      // Load matches when DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          loadHomeMatches();
+          setInterval(loadHomeMatches, 60000);
+        });
+      } else {
+        loadHomeMatches();
+        setInterval(loadHomeMatches, 60000);
+      }
       
       // Listen for language changes
       window.addEventListener('language-changed', () => {
@@ -3138,9 +3146,15 @@ app.get('/quiz', (c) => {
         <!-- Quiz Section -->
         <div id="quiz-section" style="display: none;">
           <div class="glass-card p-6 rounded-2xl mb-6">
-            <div class="flex items-center gap-3 mb-6">
-              <i class="fas fa-calendar-day text-3xl gradient-text"></i>
-              <h2 class="text-3xl font-black gradient-text">فزورة اليوم</h2>
+            <div class="flex items-center justify-between mb-6">
+              <div class="flex items-center gap-3">
+                <i class="fas fa-calendar-day text-3xl gradient-text"></i>
+                <h2 class="text-3xl font-black gradient-text">فزورة اليوم</h2>
+              </div>
+              <button onclick="handleQuizLogout()" class="btn-secondary flex items-center gap-2">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>تسجيل خروج</span>
+              </button>
             </div>
             
             <div id="quiz-content">
@@ -3172,7 +3186,13 @@ app.get('/quiz', (c) => {
         <!-- Admin Section -->
         <div id="admin-section" style="display: none;">
           <div class="glass-card p-6 rounded-2xl mb-6">
-            <h2 class="text-2xl font-bold mb-6 gradient-text">لوحة التحكم</h2>
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-2xl font-bold gradient-text">لوحة التحكم</h2>
+              <button onclick="handleQuizLogout()" class="btn-secondary flex items-center gap-2">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>تسجيل خروج</span>
+              </button>
+            </div>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div class="glass-card p-4 rounded-xl">
@@ -3634,6 +3654,17 @@ app.get('/quiz', (c) => {
       const el = document.getElementById(elementId);
       el.innerHTML = \`<p class="text-\${type === 'error' ? 'red' : 'green'}-500">\${message}</p>\`;
       setTimeout(() => el.innerHTML = '', 5000);
+    }
+    
+    function handleQuizLogout() {
+      if (confirm('هل تريد تسجيل الخروج؟')) {
+        localStorage.removeItem('koorax_token');
+        localStorage.removeItem('koorax_user');
+        document.getElementById('quiz-section').style.display = 'none';
+        document.getElementById('admin-section').style.display = 'none';
+        document.getElementById('auth-section').style.display = 'block';
+        alert('تم تسجيل الخروج بنجاح');
+      }
     }
 
     init();
