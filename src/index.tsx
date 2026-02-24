@@ -423,20 +423,7 @@ app.post('/api/quiz/answer', async (c) => {
 // Get leaderboard
 app.get('/api/quiz/leaderboard', async (c) => {
   try {
-    const result = await c.env.DB.prepare(`
-      SELECT 
-        u.id,
-        u.name,
-        u.points,
-        COUNT(CASE WHEN ua.is_correct = 1 THEN 1 END) as correct_answers,
-        COUNT(ua.id) as total_answers
-      FROM users u
-      LEFT JOIN user_answers ua ON u.id = ua.user_id
-      WHERE u.email_verified = 1 AND u.is_admin = 0
-      GROUP BY u.id
-      ORDER BY u.points DESC, correct_answers DESC
-      LIMIT 10
-    `).all();
+    const result = await c.env.DB.prepare("SELECT u.id, u.name, u.points, COUNT(CASE WHEN ua.is_correct = 1 THEN 1 END) as correct_answers, COUNT(ua.id) as total_answers FROM users u LEFT JOIN user_answers ua ON u.id = ua.user_id WHERE u.email_verified = 1 AND u.is_admin = 0 GROUP BY u.id ORDER BY u.points DESC, correct_answers DESC LIMIT 10").all();
     
     const leaderboard = result.results.map((user: any, index: number) => ({
       rank: index + 1,
@@ -446,7 +433,7 @@ app.get('/api/quiz/leaderboard', async (c) => {
       totalAnswers: user.total_answers
     }));
     
-    return c.json(leaderboard);
+    return c.json({ leaderboard });
     
   } catch (error) {
     console.error('Get leaderboard error:', error);
@@ -3041,9 +3028,76 @@ app.get('/quiz', (c) => {
       border-color: #22c55e;
       background: rgba(255, 255, 255, 0.08);
     }
+    
+    /* Toast Notifications */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 400px;
+    }
+    .toast {
+      padding: 16px 20px;
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      border: 2px solid;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    .toast.success {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(22, 163, 74, 0.3));
+      border-color: #22c55e;
+      color: #22c55e;
+    }
+    .toast.error {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.3));
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+    .toast.info {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.3));
+      border-color: #3b82f6;
+      color: #3b82f6;
+    }
+    .toast-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    .toast-message {
+      flex: 1;
+      font-weight: 600;
+      font-size: 15px;
+      color: #fff;
+    }
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+        transform: translateX(400px);
+      }
+    }
     </style>
 </head>
 <body>
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+    
     ${getEnhancedHeader('quiz')}
     
     <div class="container mx-auto px-4 py-6">
@@ -3379,14 +3433,14 @@ app.get('/quiz', (c) => {
       const confirm = document.getElementById('reg-confirm').value;
       
       if (password !== confirm) {
-        showMessage('reg-message', 'كلمة السر غير متطابقة', 'error');
+        showToast('كلمة السر غير متطابقة', 'error');
         return;
       }
       
       try {
         // Register the user
         const registerResponse = await axios.post('/api/auth/register', { name, email, password });
-        showMessage('reg-message', 'تم إنشاء الحساب بنجاح!', 'success');
+        showToast('🎉 تم إنشاء الحساب بنجاح!', 'success');
         
         // Auto login after successful registration
         setTimeout(async () => {
@@ -3394,14 +3448,15 @@ app.get('/quiz', (c) => {
             const loginResponse = await axios.post('/api/auth/login', { email, password });
             localStorage.setItem('koorax_token', loginResponse.data.token);
             currentUser = loginResponse.data.user;
+            showToast(\`مرحباً \${name}! 🌟\`, 'success');
             showQuizSection();
           } catch (loginError) {
-            showMessage('reg-message', 'تم إنشاء الحساب، يرجى تسجيل الدخول', 'success');
+            showToast('تم إنشاء الحساب، يرجى تسجيل الدخول', 'info');
             setTimeout(() => showTab('login'), 2000);
           }
         }, 1000);
       } catch (error) {
-        showMessage('reg-message', error.response?.data?.message || 'حدث خطأ', 'error');
+        showToast(error.response?.data?.error || 'حدث خطأ', 'error');
       }
     }
 
@@ -3414,9 +3469,10 @@ app.get('/quiz', (c) => {
         const response = await axios.post('/api/auth/login', { email, password });
         localStorage.setItem('koorax_token', response.data.token);
         currentUser = response.data.user;
+        showToast(\`مرحباً \${response.data.user.name}! 🎯\`, 'success');
         showQuizSection();
       } catch (error) {
-        showMessage('login-message', error.response?.data?.message || 'بيانات غير صحيحة', 'error');
+        showToast(error.response?.data?.error || 'بيانات غير صحيحة', 'error');
       }
     }
 
@@ -3649,8 +3705,32 @@ app.get('/quiz', (c) => {
         document.getElementById('quiz-section').style.display = 'none';
         document.getElementById('admin-section').style.display = 'none';
         document.getElementById('auth-section').style.display = 'block';
-        alert('تم تسجيل الخروج بنجاح');
+        showToast('تم تسجيل الخروج بنجاح', 'info');
       }
+    }
+    
+    // Toast Notification System
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = \`toast \${type}\`;
+      
+      const icons = {
+        success: '<i class="fas fa-check-circle toast-icon"></i>',
+        error: '<i class="fas fa-times-circle toast-icon"></i>',
+        info: '<i class="fas fa-info-circle toast-icon"></i>'
+      };
+      
+      toast.innerHTML = \`
+        \${icons[type] || icons.success}
+        <div class="toast-message">\${message}</div>
+      \`;
+      
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
     }
 
     init();
