@@ -441,6 +441,57 @@ app.get('/api/quiz/leaderboard', async (c) => {
   }
 });
 
+// Get user profile
+app.get('/api/user/profile', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'يجب تسجيل الدخول' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+    
+    // Get user info
+    const user = await c.env.DB.prepare("SELECT id, name, email, points, created_at FROM users WHERE id = ?").bind(decoded.userId).first();
+    
+    if (!user) {
+      return c.json({ error: 'المستخدم غير موجود' }, 404);
+    }
+    
+    // Get user rank
+    const rankResult = await c.env.DB.prepare("SELECT COUNT(*) + 1 as rank FROM users WHERE points > ? AND is_admin = 0").bind(user.points).first();
+    
+    // Get answer statistics
+    const stats = await c.env.DB.prepare("SELECT COUNT(*) as total, COUNT(CASE WHEN is_correct = 1 THEN 1 END) as correct FROM user_answers WHERE user_id = ?").bind(decoded.userId).first();
+    
+    // Get recent answers with questions
+    const recentAnswers = await c.env.DB.prepare("SELECT ua.answer, ua.is_correct, ua.points_earned, ua.answered_at, q.question_text FROM user_answers ua JOIN quiz_questions q ON ua.question_id = q.id WHERE ua.user_id = ? ORDER BY ua.answered_at DESC LIMIT 10").bind(decoded.userId).all();
+    
+    return c.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        points: user.points,
+        rank: rankResult?.rank || 0,
+        joinedAt: user.created_at
+      },
+      stats: {
+        totalAnswers: stats?.total || 0,
+        correctAnswers: stats?.correct || 0,
+        wrongAnswers: (stats?.total || 0) - (stats?.correct || 0),
+        successRate: stats?.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0
+      },
+      recentAnswers: recentAnswers.results
+    });
+    
+  } catch (error) {
+    console.error('Get profile error:', error);
+    return c.json({ error: 'حدث خطأ أثناء جلب الملف الشخصي' }, 500);
+  }
+});
+
 // ===== ADMIN APIs =====
 
 // Get stats (admin only)
@@ -582,6 +633,94 @@ app.post('/api/admin/question', async (c) => {
   } catch (error: any) {
     console.error('Add question error:', error);
     return c.json({ error: 'حدث خطأ أثناء إضافة السؤال' }, 500);
+  }
+});
+
+// Get all questions (admin only)
+app.get('/api/admin/questions', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'غير مصرح' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+    
+    if (!decoded?.isAdmin) {
+      return c.json({ error: 'غير مصرح للوصول' }, 403);
+    }
+    
+    const questions = await c.env.DB.prepare("SELECT id, question_text, options, correct_answer, created_at FROM quiz_questions ORDER BY id DESC").all();
+    
+    return c.json({ questions: questions.results });
+    
+  } catch (error) {
+    console.error('Get questions error:', error);
+    return c.json({ error: 'حدث خطأ أثناء جلب الأسئلة' }, 500);
+  }
+});
+
+// Update question (admin only)
+app.put('/api/admin/questions/:id', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'غير مصرح' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+    
+    if (!decoded?.isAdmin) {
+      return c.json({ error: 'غير مصرح للوصول' }, 403);
+    }
+    
+    const questionId = parseInt(c.req.param('id'));
+    const { question_text, options, correct_answer } = await c.req.json();
+    
+    if (!question_text || !options || !correct_answer) {
+      return c.json({ error: 'جميع الحقول مطلوبة' }, 400);
+    }
+    
+    await c.env.DB.prepare("UPDATE quiz_questions SET question_text = ?, options = ?, correct_answer = ? WHERE id = ?").bind(question_text, JSON.stringify(options), correct_answer.toLowerCase(), questionId).run();
+    
+    return c.json({ success: true });
+    
+  } catch (error) {
+    console.error('Update question error:', error);
+    return c.json({ error: 'حدث خطأ أثناء تحديث السؤال' }, 500);
+  }
+});
+
+// Delete question (admin only)
+app.delete('/api/admin/questions/:id', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'غير مصرح' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+    
+    if (!decoded?.isAdmin) {
+      return c.json({ error: 'غير مصرح للوصول' }, 403);
+    }
+    
+    const questionId = parseInt(c.req.param('id'));
+    
+    // Delete related answers first
+    await c.env.DB.prepare("DELETE FROM user_answers WHERE question_id = ?").bind(questionId).run();
+    
+    // Delete the question
+    await c.env.DB.prepare("DELETE FROM quiz_questions WHERE id = ?").bind(questionId).run();
+    
+    return c.json({ success: true });
+    
+  } catch (error) {
+    console.error('Delete question error:', error);
+    return c.json({ error: 'حدث خطأ أثناء حذف السؤال' }, 500);
   }
 });
 
@@ -3333,6 +3472,57 @@ app.get('/quiz', (c) => {
               </div>
             </div>
             
+            <!-- Questions Management Section -->
+            <div class="mb-6">
+              <h3 class="text-xl font-bold mb-4">
+                <i class="fas fa-list mr-2"></i>
+                إدارة الأسئلة
+              </h3>
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead>
+                    <tr class="border-b border-gray-700">
+                      <th class="p-3 text-right">ID</th>
+                      <th class="p-3 text-right">السؤال</th>
+                      <th class="p-3 text-right">الإجابة الصحيحة</th>
+                      <th class="p-3 text-right">تاريخ الإضافة</th>
+                      <th class="p-3 text-right">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody id="questions-table"></tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- Questions Management Table -->
+            <div class="mb-8">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold">إدارة الأسئلة</h3>
+                <button onclick="loadQuestions()" class="btn-secondary">
+                  <i class="fas fa-sync-alt"></i>
+                  تحديث
+                </button>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead>
+                    <tr class="border-b border-gray-700">
+                      <th class="text-right p-3">#</th>
+                      <th class="text-right p-3">السؤال</th>
+                      <th class="text-center p-3">الإجابة الصحيحة</th>
+                      <th class="text-center p-3">التاريخ</th>
+                      <th class="text-center p-3">الإجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody id="questions-table">
+                    <tr>
+                      <td colspan="5" class="text-center p-8 text-gray-400">جاري التحميل...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
             <div>
               <h3 class="text-xl font-bold mb-4">إضافة سؤال جديد</h3>
               <form onsubmit="handleAddQuestion(event)" class="space-y-4">
@@ -3376,6 +3566,61 @@ app.get('/quiz', (c) => {
             </div>
           </div>
         </div>
+        
+        <!-- Edit Question Modal -->
+        <div id="edit-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center;">
+          <div class="glass-card p-6 rounded-2xl max-w-2xl mx-4" style="max-height: 90vh; overflow-y: auto;">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-2xl font-bold gradient-text">تعديل السؤال</h3>
+              <button onclick="closeEditModal()" class="text-white text-2xl">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <form onsubmit="handleUpdateQuestion(event)" class="space-y-4">
+              <input type="hidden" id="edit-q-id">
+              <div class="form-group">
+                <label class="form-label">نص السؤال</label>
+                <textarea id="edit-q-text" class="form-input" rows="3" required></textarea>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-group">
+                  <label class="form-label">الخيار A</label>
+                  <input type="text" id="edit-q-a" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">الخيار B</label>
+                  <input type="text" id="edit-q-b" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">الخيار C</label>
+                  <input type="text" id="edit-q-c" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">الخيار D</label>
+                  <input type="text" id="edit-q-d" class="form-input" required>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">الإجابة الصحيحة</label>
+                <select id="edit-q-correct" class="form-input" required>
+                  <option value="a">A</option>
+                  <option value="b">B</option>
+                  <option value="c">C</option>
+                  <option value="d">D</option>
+                </select>
+              </div>
+              <div class="flex gap-4">
+                <button type="submit" class="btn-primary flex-1">
+                  <i class="fas fa-save"></i>
+                  حفظ التعديلات
+                </button>
+                <button type="button" onclick="closeEditModal()" class="btn-secondary flex-1">
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
     </div>
 
     <script>
@@ -3412,6 +3657,7 @@ app.get('/quiz', (c) => {
         document.getElementById('admin-section').style.display = 'block';
         document.getElementById('quiz-section').style.display = 'none';
         await loadAdminDashboard();
+        await loadQuestions();
       } else {
         document.getElementById('admin-section').style.display = 'none';
         document.getElementById('quiz-section').style.display = 'block';
@@ -3664,6 +3910,104 @@ app.get('/quiz', (c) => {
         alert('حدث خطأ أثناء الحذف');
       }
     }
+    
+    // Questions Management Functions
+    async function loadQuestions() {
+      try {
+        const token = localStorage.getItem('koorax_token');
+        const response = await axios.get('/api/admin/questions', {
+          headers: { Authorization: \`Bearer \${token}\` }
+        });
+        
+        const table = document.getElementById('questions-table');
+        table.innerHTML = response.data.questions.map(q => {
+          const options = typeof q.options === 'string' ? JSON.parse(q.options) : q.options;
+          return \`
+            <tr class="border-b border-gray-800 hover:bg-gray-800/50">
+              <td class="p-3">\${q.id}</td>
+              <td class="p-3">\${q.question_text.substring(0, 50)}...</td>
+              <td class="p-3">\${q.correct_answer.toUpperCase()}</td>
+              <td class="p-3">\${new Date(q.created_at).toLocaleDateString('ar-EG')}</td>
+              <td class="p-3">
+                <button onclick='editQuestion(\${JSON.stringify(q).replace(/'/g, "\\\\'")})'  class="text-blue-500 hover:text-blue-400 mr-2">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button onclick="deleteQuestion(\${q.id})" class="text-red-500 hover:text-red-400">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          \`;
+        }).join('');
+      } catch (error) {
+        console.error('Error loading questions:', error);
+      }
+    }
+    
+    function editQuestion(question) {
+      const options = typeof question.options === 'string' ? JSON.parse(question.options) : question.options;
+      
+      document.getElementById('edit-q-id').value = question.id;
+      document.getElementById('edit-q-text').value = question.question_text;
+      document.getElementById('edit-q-a').value = options.a;
+      document.getElementById('edit-q-b').value = options.b;
+      document.getElementById('edit-q-c').value = options.c;
+      document.getElementById('edit-q-d').value = options.d;
+      document.getElementById('edit-q-correct').value = question.correct_answer.toLowerCase();
+      
+      document.getElementById('edit-modal').style.display = 'flex';
+    }
+    
+    function closeEditModal() {
+      document.getElementById('edit-modal').style.display = 'none';
+    }
+    
+    async function handleUpdateQuestion(e) {
+      e.preventDefault();
+      
+      const questionId = document.getElementById('edit-q-id').value;
+      const question = {
+        question_text: document.getElementById('edit-q-text').value,
+        options: {
+          a: document.getElementById('edit-q-a').value,
+          b: document.getElementById('edit-q-b').value,
+          c: document.getElementById('edit-q-c').value,
+          d: document.getElementById('edit-q-d').value
+        },
+        correct_answer: document.getElementById('edit-q-correct').value
+      };
+      
+      try {
+        const token = localStorage.getItem('koorax_token');
+        await axios.put(\`/api/admin/questions/\${questionId}\`, question, {
+          headers: { Authorization: \`Bearer \${token}\` }
+        });
+        showToast('تم تحديث السؤال بنجاح', 'success');
+        closeEditModal();
+        await loadQuestions();
+        await loadAdminDashboard();
+      } catch (error) {
+        showToast('حدث خطأ أثناء تحديث السؤال', 'error');
+      }
+    }
+    
+    async function deleteQuestion(questionId) {
+      if (!confirm('هل أنت متأكد من حذف هذا السؤال؟ سيتم حذف جميع الإجابات المرتبطة به.')) {
+        return;
+      }
+      
+      try {
+        const token = localStorage.getItem('koorax_token');
+        await axios.delete(\`/api/admin/questions/\${questionId}\`, {
+          headers: { Authorization: \`Bearer \${token}\` }
+        });
+        showToast('تم حذف السؤال بنجاح', 'success');
+        await loadQuestions();
+        await loadAdminDashboard();
+      } catch (error) {
+        showToast('حدث خطأ أثناء حذف السؤال', 'error');
+      }
+    }
 
     async function handleAddQuestion(e) {
       e.preventDefault();
@@ -3734,6 +4078,294 @@ app.get('/quiz', (c) => {
     }
 
     init();
+    </script>
+</body>
+</html>
+  `);
+});
+
+// Profile page
+app.get('/profile', (c) => {
+  return c.html(`
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚽ Koorax - الملف الشخصي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/koorax-enhanced.css">
+    <style>
+    .profile-stat-card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+    .profile-stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(34, 197, 94, 0.2);
+    }
+    .answer-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: all 0.3s ease;
+    }
+    .answer-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .answer-correct {
+      border-left: 4px solid #22c55e;
+    }
+    .answer-wrong {
+      border-left: 4px solid #ef4444;
+    }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 min-h-screen text-white">
+    <script>
+      function getEnhancedHeader(activePage) {
+        return \`
+          <header class="glass-card p-4 mb-6 sticky top-0 z-50">
+            <div class="container mx-auto flex justify-between items-center">
+              <div class="flex items-center gap-8">
+                <a href="/" class="text-2xl font-bold flex items-center gap-2 hover:scale-105 transition-transform">
+                  <span class="text-4xl">⚽</span>
+                  <span class="bg-gradient-to-r from-primary to-green-400 text-transparent bg-clip-text">Koorax</span>
+                </a>
+                <nav class="hidden md:flex gap-6">
+                  <a href="/" class="header-nav-link \${activePage === 'home' ? 'active' : ''}">
+                    <i class="fas fa-home"></i>
+                    <span data-translate="home">الرئيسية</span>
+                  </a>
+                  <a href="/matches" class="header-nav-link \${activePage === 'matches' ? 'active' : ''}">
+                    <i class="fas fa-futbol"></i>
+                    <span data-translate="matches">المباريات</span>
+                  </a>
+                  <a href="/competitions" class="header-nav-link \${activePage === 'competitions' ? 'active' : ''}">
+                    <i class="fas fa-trophy"></i>
+                    <span data-translate="competitions">المسابقات</span>
+                  </a>
+                  <a href="/quiz" class="header-nav-link \${activePage === 'quiz' ? 'active' : ''}">
+                    <i class="fas fa-question-circle"></i>
+                    <span data-translate="quiz">الفزورة</span>
+                  </a>
+                  <a href="/profile" class="header-nav-link \${activePage === 'profile' ? 'active' : ''}">
+                    <i class="fas fa-user"></i>
+                    <span data-translate="profile">الملف الشخصي</span>
+                  </a>
+                </nav>
+              </div>
+              <div class="flex items-center gap-4">
+                <button onclick="kooraxToggleDarkMode()" class="header-btn" title="Toggle Dark Mode">
+                  <i id="theme-toggle-icon" class="fas fa-moon"></i>
+                </button>
+                <button onclick="kooraxToggleLanguage()" class="header-btn">
+                  <span id="lang-toggle-text">EN</span>
+                </button>
+                <button onclick="kooraxToggleMobileMenu()" class="header-btn md:hidden">
+                  <div class="burger-menu">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </header>
+        \`;
+      }
+      document.write(getEnhancedHeader('profile'));
+    </script>
+
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+      <!-- Profile Header -->
+      <div class="glass-card p-8 mb-6">
+        <div class="flex items-center gap-6">
+          <div class="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-green-600 flex items-center justify-center text-4xl font-bold">
+            <span id="user-initial">U</span>
+          </div>
+          <div class="flex-1">
+            <h1 class="text-3xl font-bold mb-2" id="user-name-profile">جاري التحميل...</h1>
+            <p class="text-gray-400" id="user-email-profile">---</p>
+            <p class="text-sm text-gray-500 mt-2">
+              <i class="fas fa-calendar-alt mr-2"></i>
+              <span>انضم في: </span>
+              <span id="joined-date">---</span>
+            </p>
+          </div>
+          <div class="text-center">
+            <div class="text-5xl font-bold text-primary" id="user-rank-profile">--</div>
+            <div class="text-sm text-gray-400">الترتيب</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="profile-stat-card text-center">
+          <div class="text-4xl mb-2">🏆</div>
+          <div class="text-3xl font-bold text-primary" id="total-points">0</div>
+          <div class="text-sm text-gray-400">إجمالي النقاط</div>
+        </div>
+        <div class="profile-stat-card text-center">
+          <div class="text-4xl mb-2">✅</div>
+          <div class="text-3xl font-bold text-green-500" id="correct-answers">0</div>
+          <div class="text-sm text-gray-400">إجابات صحيحة</div>
+        </div>
+        <div class="profile-stat-card text-center">
+          <div class="text-4xl mb-2">❌</div>
+          <div class="text-3xl font-bold text-red-500" id="wrong-answers">0</div>
+          <div class="text-sm text-gray-400">إجابات خاطئة</div>
+        </div>
+        <div class="profile-stat-card text-center">
+          <div class="text-4xl mb-2">📊</div>
+          <div class="text-3xl font-bold text-blue-500"><span id="success-rate">0</span>%</div>
+          <div class="text-sm text-gray-400">معدل النجاح</div>
+        </div>
+      </div>
+
+      <!-- Progress Chart -->
+      <div class="glass-card p-6 mb-6">
+        <h2 class="text-2xl font-bold mb-4">
+          <i class="fas fa-chart-line text-primary mr-2"></i>
+          تقدمك
+        </h2>
+        <canvas id="progressChart"></canvas>
+      </div>
+
+      <!-- Recent Answers -->
+      <div class="glass-card p-6">
+        <h2 class="text-2xl font-bold mb-4">
+          <i class="fas fa-history text-primary mr-2"></i>
+          آخر الإجابات
+        </h2>
+        <div id="recent-answers-container">
+          <p class="text-center text-gray-400 py-8">جاري التحميل...</p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    let profileChart = null;
+
+    async function loadProfile() {
+      try {
+        const token = localStorage.getItem('koorax_token');
+        if (!token) {
+          window.location.href = '/quiz';
+          return;
+        }
+
+        const response = await axios.get('/api/user/profile', {
+          headers: { Authorization: \`Bearer \${token}\` }
+        });
+
+        const { user, stats, recentAnswers } = response.data;
+
+        // Update user info
+        document.getElementById('user-name-profile').textContent = user.name;
+        document.getElementById('user-email-profile').textContent = user.email;
+        document.getElementById('user-initial').textContent = user.name.charAt(0).toUpperCase();
+        document.getElementById('user-rank-profile').textContent = '#' + user.rank;
+        document.getElementById('joined-date').textContent = new Date(user.joinedAt).toLocaleDateString('ar-EG');
+
+        // Update stats
+        document.getElementById('total-points').textContent = user.points;
+        document.getElementById('correct-answers').textContent = stats.correctAnswers;
+        document.getElementById('wrong-answers').textContent = stats.wrongAnswers;
+        document.getElementById('success-rate').textContent = stats.successRate;
+
+        // Render chart
+        renderChart(stats);
+
+        // Render recent answers
+        renderRecentAnswers(recentAnswers);
+
+      } catch (error) {
+        console.error('Load profile error:', error);
+        if (error.response?.status === 401) {
+          localStorage.removeItem('koorax_token');
+          window.location.href = '/quiz';
+        }
+      }
+    }
+
+    function renderChart(stats) {
+      const ctx = document.getElementById('progressChart').getContext('2d');
+      
+      if (profileChart) {
+        profileChart.destroy();
+      }
+
+      profileChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['إجابات صحيحة', 'إجابات خاطئة'],
+          datasets: [{
+            data: [stats.correctAnswers, stats.wrongAnswers],
+            backgroundColor: ['#22c55e', '#ef4444'],
+            borderColor: ['#16a34a', '#dc2626'],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: '#fff',
+                font: { size: 14 },
+                padding: 20
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderRecentAnswers(answers) {
+      const container = document.getElementById('recent-answers-container');
+      
+      if (answers.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-400 py-8">لا توجد إجابات بعد</p>';
+        return;
+      }
+
+      container.innerHTML = answers.map(answer => \`
+        <div class="answer-item \${answer.is_correct ? 'answer-correct' : 'answer-wrong'}">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-2">
+                <i class="fas \${answer.is_correct ? 'fa-check-circle text-green-500' : 'fa-times-circle text-red-500'}"></i>
+                <span class="font-bold">\${answer.question_text}</span>
+              </div>
+              <div class="text-sm text-gray-400">
+                <span>الإجابة: \${answer.answer.toUpperCase()}</span>
+                <span class="mx-2">•</span>
+                <span>\${answer.is_correct ? '+' + answer.points_earned + ' نقطة' : '0 نقطة'}</span>
+              </div>
+            </div>
+            <div class="text-xs text-gray-500">
+              \${new Date(answer.answered_at).toLocaleDateString('ar-EG')}
+            </div>
+          </div>
+        </div>
+      \`).join('');
+    }
+
+    // Initialize
+    loadProfile();
     </script>
 </body>
 </html>
