@@ -376,7 +376,9 @@ app.post('/api/quiz/answer', async (c) => {
     
     const { questionId, answer } = await c.req.json();
     
-    if (!questionId || !answer || !['A', 'B', 'C', 'D'].includes(answer)) {
+    // Convert answer to uppercase and validate
+    const answerUpper = answer?.toUpperCase();
+    if (!questionId || !answerUpper || !['A', 'B', 'C', 'D'].includes(answerUpper)) {
       return c.json({ error: 'بيانات غير صالحة' }, 400);
     }
     
@@ -395,11 +397,11 @@ app.post('/api/quiz/answer', async (c) => {
     }
     
     // Check answer
-    const isCorrect = answer === question.correct_answer;
+    const isCorrect = answerUpper === question.correct_answer.toUpperCase();
     const pointsEarned = isCorrect ? 10 : 0;
     
     // Save answer
-    await c.env.DB.prepare("INSERT INTO user_answers (user_id, question_id, answer, is_correct, points_earned) VALUES (?, ?, ?, ?, ?)").bind(decoded.userId, questionId, answer, isCorrect ? 1 : 0, pointsEarned).run();
+    await c.env.DB.prepare("INSERT INTO user_answers (user_id, question_id, answer, is_correct, points_earned) VALUES (?, ?, ?, ?, ?)").bind(decoded.userId, questionId, answerUpper, isCorrect ? 1 : 0, pointsEarned).run();
     
     // Update user points
     if (isCorrect) {
@@ -1062,19 +1064,6 @@ function getEnhancedHeader(currentPage: string = '') {
 
       <!-- Right Side Controls -->
       <div class="flex items-center gap-2">
-        <!-- User Profile / Login Button -->
-        <div id="user-section">
-          <button onclick="kooraxShowLogin()" class="header-btn" id="login-btn">
-            <i class="fas fa-user"></i>
-            <span class="hidden md:inline" data-translate="login">دخول</span>
-          </button>
-          <div onclick="kooraxToggleUserMenu()" class="user-profile" id="user-profile" style="display: none;">
-            <div class="user-avatar" id="user-avatar"></div>
-            <span class="hidden md:inline" id="user-name"></span>
-            <i class="fas fa-chevron-down text-xs"></i>
-          </div>
-        </div>
-        
         <!-- Dark Mode Toggle -->
         <button onclick="kooraxToggleDarkMode()" class="header-btn" title="Toggle Dark Mode">
           <i id="theme-toggle-icon" class="fas fa-moon"></i>
@@ -1132,20 +1121,7 @@ function getEnhancedHeader(currentPage: string = '') {
   </div>
   
   <div class="mobile-menu-footer">
-    <div id="mobile-user-section">
-      <button onclick="kooraxShowLogin(); kooraxCloseMobileMenu();" class="btn-primary w-full" id="mobile-login-btn">
-        <i class="fas fa-user"></i>
-        <span data-translate="login">دخول</span>
-      </button>
-      <div class="user-profile" id="mobile-user-profile" style="display: none;">
-        <div class="user-avatar" id="mobile-user-avatar"></div>
-        <span id="mobile-user-name"></span>
-      </div>
-      <button onclick="kooraxLogout(); kooraxCloseMobileMenu();" class="btn-secondary w-full mt-2" id="mobile-logout-btn" style="display: none;">
-        <i class="fas fa-sign-out-alt"></i>
-        <span data-translate="logout">تسجيل خروج</span>
-      </button>
-    </div>
+    <!-- Mobile user section removed - users access quiz directly -->
   </div>
 </div>
 
@@ -1498,8 +1474,10 @@ app.get('/', (c) => {
 
       async function loadHomeMatches() {
         try {
+          console.log('🔄 Loading matches...');
           const response = await axios.get('/api/matches');
           const matches = response.data.matches;
+          console.log('✅ Loaded', matches.length, 'matches');
           
           // Filter live matches
           const liveMatches = matches.filter(m => m.status === 'IN_PLAY' || m.status === 'PAUSED');
@@ -1509,6 +1487,8 @@ app.get('/', (c) => {
             return matchDate.toDateString() === today.toDateString() && m.status === 'SCHEDULED';
           }).slice(0, 6);
           
+          console.log('📊 Live:', liveMatches.length, 'Upcoming today:', upcomingToday.length);
+          
           // Show live matches
           if (liveMatches.length > 0) {
             document.getElementById('live-section').style.display = 'block';
@@ -1517,6 +1497,7 @@ app.get('/', (c) => {
           
           // Show important matches (live + upcoming today)
           const importantMatches = [...liveMatches, ...upcomingToday].slice(0, 6);
+          console.log('⭐ Important matches:', importantMatches.length);
           const t = window.kooraxT;
           document.getElementById('important-matches').innerHTML = 
             importantMatches.length > 0 
@@ -1525,7 +1506,7 @@ app.get('/', (c) => {
           
           window.kooraxApplyTranslations();
         } catch (error) {
-          console.error('Error loading matches:', error);
+          console.error('❌ Error loading matches:', error);
           document.getElementById('important-matches').innerHTML = 
             '<p class="text-center text-red-500 col-span-2 py-12" data-translate="error">حدث خطأ في تحميل المباريات</p>';
           window.kooraxApplyTranslations();
@@ -3439,6 +3420,8 @@ app.get('/quiz', (c) => {
       }
     }
 
+    let currentQuestionId = null;
+    
     async function loadQuiz() {
       try {
         const token = localStorage.getItem('koorax_token');
@@ -3450,10 +3433,13 @@ app.get('/quiz', (c) => {
           document.getElementById('question-card').style.display = 'none';
           document.getElementById('answered-card').style.display = 'block';
         } else {
-          const question = response.data.question;
-          document.getElementById('question-text').textContent = question.question_text;
+          // Save question ID for submission
+          currentQuestionId = response.data.id;
           
-          const options = JSON.parse(question.options);
+          // Get question text and options directly from response
+          document.getElementById('question-text').textContent = response.data.question;
+          
+          const options = response.data.options;
           const container = document.getElementById('options-container');
           container.innerHTML = Object.entries(options).map(([key, value]) => \`
             <button onclick="submitAnswer('\${key}')" class="quiz-option p-4 rounded-xl bg-gray-800 hover:bg-green-600 transition-all text-right border-2 border-gray-700 hover:border-green-500">
@@ -3470,7 +3456,7 @@ app.get('/quiz', (c) => {
       try {
         const token = localStorage.getItem('koorax_token');
         const response = await axios.post('/api/quiz/answer', 
-          { answer }, 
+          { questionId: currentQuestionId, answer }, 
           { headers: { Authorization: \`Bearer \${token}\` }}
         );
         
