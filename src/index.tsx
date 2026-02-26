@@ -3365,10 +3365,6 @@ app.get('/quiz', (c) => {
                 <i class="fas fa-calendar-day text-3xl gradient-text"></i>
                 <h2 class="text-3xl font-black gradient-text">فزورة اليوم</h2>
               </div>
-              <button onclick="handleQuizLogout()" class="btn-secondary flex items-center gap-2">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>تسجيل خروج</span>
-              </button>
             </div>
             
             <div id="quiz-content">
@@ -3402,10 +3398,6 @@ app.get('/quiz', (c) => {
           <div class="glass-card p-6 rounded-2xl mb-6">
             <div class="flex items-center justify-between mb-6">
               <h2 class="text-2xl font-bold gradient-text">لوحة التحكم</h2>
-              <button onclick="handleQuizLogout()" class="btn-secondary flex items-center gap-2">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>تسجيل خروج</span>
-              </button>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -4199,62 +4191,20 @@ app.get('/profile', (c) => {
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 min-h-screen text-white">
+    <script src="/static/koorax-global.js"></script>
     <script>
-      function getEnhancedHeader(activePage) {
-        return \`
-          <header class="glass-card p-4 mb-6 sticky top-0 z-50">
-            <div class="container mx-auto flex justify-between items-center">
-              <div class="flex items-center gap-8">
-                <a href="/" class="text-2xl font-bold flex items-center gap-2 hover:scale-105 transition-transform">
-                  <span class="text-4xl">⚽</span>
-                  <span class="bg-gradient-to-r from-primary to-green-400 text-transparent bg-clip-text">Koorax</span>
-                </a>
-                <nav class="hidden md:flex gap-6">
-                  <a href="/" class="header-nav-link \${activePage === 'home' ? 'active' : ''}">
-                    <i class="fas fa-home"></i>
-                    <span data-translate="home">الرئيسية</span>
-                  </a>
-                  <a href="/matches" class="header-nav-link \${activePage === 'matches' ? 'active' : ''}">
-                    <i class="fas fa-futbol"></i>
-                    <span data-translate="matches">المباريات</span>
-                  </a>
-                  <a href="/competitions" class="header-nav-link \${activePage === 'competitions' ? 'active' : ''}">
-                    <i class="fas fa-trophy"></i>
-                    <span data-translate="competitions">المسابقات</span>
-                  </a>
-                  <a href="/quiz" class="header-nav-link \${activePage === 'quiz' ? 'active' : ''}">
-                    <i class="fas fa-question-circle"></i>
-                    <span data-translate="quiz">الفزورة</span>
-                  </a>
-                  <a href="/profile" class="header-nav-link \${activePage === 'profile' ? 'active' : ''}">
-                    <i class="fas fa-user"></i>
-                    <span data-translate="profile">الملف الشخصي</span>
-                  </a>
-                </nav>
-              </div>
-              <div class="flex items-center gap-4">
-                <button onclick="kooraxToggleDarkMode()" class="header-btn" title="Toggle Dark Mode">
-                  <i id="theme-toggle-icon" class="fas fa-moon"></i>
-                </button>
-                <button onclick="kooraxToggleLanguage()" class="header-btn">
-                  <span id="lang-toggle-text">EN</span>
-                </button>
-                <button onclick="kooraxToggleMobileMenu()" class="header-btn md:hidden">
-                  <div class="burger-menu">
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </header>
-        \`;
-      }
       document.write(getEnhancedHeader('profile'));
     </script>
 
-    <div class="container mx-auto px-4 py-8 max-w-6xl">
+    <div class="container mx-auto px-4 py-8 max-w-6xl" id="profile-content" style="display: none;">
+      <!-- Logout Button -->
+      <div class="flex justify-end mb-4">
+        <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition-all">
+          <i class="fas fa-sign-out-alt mr-2"></i>
+          تسجيل الخروج
+        </button>
+      </div>
+      
       <!-- Profile Header -->
       <div class="glass-card p-8 mb-6">
         <div class="flex items-center gap-6">
@@ -4432,8 +4382,35 @@ app.get('/profile', (c) => {
       \`).join('');
     }
 
+    function handleLogout() {
+      if (confirm('هل تريد تسجيل الخروج؟')) {
+        localStorage.removeItem('koorax_token');
+        localStorage.removeItem('koorax_user');
+        window.location.href = '/quiz';
+      }
+    }
+
+    // Check authentication first
+    async function checkAuth() {
+      const token = localStorage.getItem('koorax_token');
+      if (!token) {
+        alert('يجب تسجيل الدخول أولاً');
+        window.location.href = '/quiz';
+        return false;
+      }
+      return true;
+    }
+
     // Initialize
-    loadProfile();
+    async function init() {
+      const isAuth = await checkAuth();
+      if (isAuth) {
+        document.getElementById('profile-content').style.display = 'block';
+        await loadProfile();
+      }
+    }
+    
+    init();
     </script>
 </body>
 </html>
