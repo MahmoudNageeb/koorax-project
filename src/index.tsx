@@ -595,6 +595,38 @@ app.delete('/api/admin/users/:id', async (c) => {
   }
 });
 
+// Update user points (admin only)
+app.put('/api/admin/users/:id/points', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'غير مصرح' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+    
+    if (!decoded.isAdmin) {
+      return c.json({ error: 'غير مصرح للوصول' }, 403);
+    }
+    
+    const userId = parseInt(c.req.param('id'));
+    const { points } = await c.req.json();
+    
+    if (typeof points !== 'number' || points < 0) {
+      return c.json({ error: 'النقاط يجب أن تكون رقم صحيح موجب' }, 400);
+    }
+    
+    await c.env.DB.prepare("UPDATE users SET points = ? WHERE id = ?").bind(points, userId).run();
+    
+    return c.json({ success: true });
+    
+  } catch (error) {
+    console.error('Update points error:', error);
+    return c.json({ error: 'حدث خطأ' }, 500);
+  }
+});
+
 // Add question (admin only)
 app.post('/api/admin/question', async (c) => {
   try {
@@ -1186,6 +1218,10 @@ function getEnhancedHeader(currentPage: string = '') {
           <i class="fas fa-question-circle"></i>
           <span class="hidden md:inline">الفزورة</span>
         </a>
+        <a href="/profile" class="nav-link ${currentPage === 'profile' ? 'active' : ''}">
+          <i class="fas fa-user"></i>
+          <span class="hidden md:inline">الملف الشخصي</span>
+        </a>
       </div>
 
       <!-- Right Side Controls -->
@@ -1243,6 +1279,10 @@ function getEnhancedHeader(currentPage: string = '') {
     <a href="/quiz" class="mobile-nav-link ${currentPage === 'quiz' ? 'active' : ''}">
       <i class="fas fa-question-circle"></i>
       <span>الفزورة</span>
+    </a>
+    <a href="/profile" class="mobile-nav-link ${currentPage === 'profile' ? 'active' : ''}">
+      <i class="fas fa-user"></i>
+      <span>الملف الشخصي</span>
     </a>
   </div>
   
@@ -3885,6 +3925,9 @@ app.get('/quiz', (c) => {
             <td class="p-3"><span class="text-primary font-bold">\${user.points}</span></td>
             <td class="p-3">\${new Date(user.created_at).toLocaleDateString('ar-EG')}</td>
             <td class="p-3">
+              <button onclick="editUserPoints(\${user.id}, \${user.points}, '\${user.name}')" class="text-blue-500 hover:text-blue-300 mr-2">
+                <i class="fas fa-edit"></i>
+              </button>
               <button onclick="deleteUser(\${user.id})" class="text-red-500 hover:text-red-300">
                 <i class="fas fa-trash"></i>
               </button>
@@ -3908,6 +3951,31 @@ app.get('/quiz', (c) => {
         await loadAdminDashboard();
       } catch (error) {
         alert('حدث خطأ أثناء الحذف');
+      }
+    }
+    
+    async function editUserPoints(userId, currentPoints, userName) {
+      const newPoints = prompt(\`تعديل نقاط \${userName}\nالنقاط الحالية: \${currentPoints}\n\nأدخل النقاط الجديدة:\`, currentPoints);
+      
+      if (newPoints === null) return; // User cancelled
+      
+      const points = parseInt(newPoints);
+      if (isNaN(points) || points < 0) {
+        showToast('الرجاء إدخال رقم صحيح موجب', 'error');
+        return;
+      }
+      
+      try {
+        const token = localStorage.getItem('koorax_token');
+        await axios.put(\`/api/admin/users/\${userId}/points\`, 
+          { points }, 
+          { headers: { Authorization: \`Bearer \${token}\` } }
+        );
+        showToast(\`تم تحديث نقاط \${userName} إلى \${points}\`, 'success');
+        await loadParticipants();
+        await loadAdminDashboard();
+      } catch (error) {
+        showToast('حدث خطأ أثناء تحديث النقاط', 'error');
       }
     }
     
