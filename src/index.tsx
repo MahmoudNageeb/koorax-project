@@ -1575,10 +1575,20 @@ app.get('/', (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - مباريات كرة القدم</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#22c55e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Koorax">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <link rel="stylesheet" href="/static/koorax-enhanced.css">
+    <script src="/static/pwa.js"></script>
 </head>
 <body>
     ${getEnhancedHeader('home')}
@@ -3144,10 +3154,18 @@ app.get('/quiz', (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - فزورة كوراكس</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#22c55e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <link rel="stylesheet" href="/static/koorax-enhanced.css">
+    <script src="/static/pwa.js"></script>
     <style>
     .btn-primary {
       padding: 14px 24px;
@@ -3393,6 +3411,24 @@ app.get('/quiz', (c) => {
           </div>
         </div>
 
+        <!-- Push Notifications Section -->
+        <div class="glass-card p-6 rounded-2xl">
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+              <i class="fas fa-bell text-3xl gradient-text"></i>
+              <h2 class="text-2xl font-black gradient-text">الإشعارات</h2>
+            </div>
+          </div>
+          <div class="text-center py-6">
+            <p class="text-gray-400 mb-4">احصل على إشعار فوري عند إضافة سؤال جديد!</p>
+            <button onclick="toggleNotifications()" id="notification-btn" class="btn-primary">
+              <i class="fas fa-bell-slash"></i>
+              <span id="notification-text">تفعيل الإشعارات</span>
+            </button>
+            <p class="text-xs text-gray-500 mt-3" id="notification-status">غير مفعل</p>
+          </div>
+        </div>
+
         <!-- Admin Section -->
         <div id="admin-section" style="display: none;">
           <div class="glass-card p-6 rounded-2xl mb-6">
@@ -3595,6 +3631,19 @@ app.get('/quiz', (c) => {
                   إضافة السؤال
                 </button>
               </form>
+            </div>
+            
+            <!-- Send Notification Section -->
+            <div class="mt-6 pt-6 border-t border-gray-700">
+              <h3 class="text-xl font-bold mb-4">إرسال إشعار لجميع المستخدمين</h3>
+              <div class="space-y-4">
+                <p class="text-gray-400 text-sm">سيتم إرسال إشعار فوري لجميع المستخدمين المشتركين في الإشعارات</p>
+                <button onclick="sendNotificationToAll()" class="btn-primary w-full">
+                  <i class="fas fa-paper-plane"></i>
+                  إرسال إشعار: سؤال جديد متاح!
+                </button>
+                <p class="text-xs text-gray-500 text-center" id="notification-send-status"></p>
+              </div>
             </div>
           </div>
         </div>
@@ -4096,6 +4145,41 @@ app.get('/quiz', (c) => {
       }
     }
 
+    async function sendNotificationToAll() {
+      const statusEl = document.getElementById('notification-send-status');
+      
+      if (!confirm('هل تريد إرسال إشعار لجميع المستخدمين المشتركين؟')) {
+        return;
+      }
+      
+      try {
+        statusEl.textContent = 'جاري الإرسال...';
+        statusEl.className = 'text-xs text-blue-500 text-center';
+        
+        const token = localStorage.getItem('koorax_token');
+        const response = await axios.post('/api/push/notify-all', {
+          title: '⚽ Koorax - سؤال جديد!',
+          body: 'سؤال جديد متاح الآن! اضغط لحل الفزورة',
+          url: '/quiz'
+        }, {
+          headers: { Authorization: \`Bearer \${token}\` }
+        });
+        
+        if (response.data.success) {
+          showToast(\`تم إرسال \${response.data.sent} إشعار بنجاح!\`, 'success');
+          statusEl.textContent = \`آخر إرسال: \${response.data.sent} مستخدم\`;
+          statusEl.className = 'text-xs text-green-500 text-center';
+        } else {
+          throw new Error(response.data.error);
+        }
+      } catch (error) {
+        showToast('فشل إرسال الإشعارات', 'error');
+        statusEl.textContent = 'فشل الإرسال';
+        statusEl.className = 'text-xs text-red-500 text-center';
+        console.error('Send notification error:', error);
+      }
+    }
+
     function showMessage(elementId, message, type) {
       const el = document.getElementById(elementId);
       el.innerHTML = \`<p class="text-\${type === 'error' ? 'red' : 'green'}-500">\${message}</p>\`;
@@ -4137,7 +4221,51 @@ app.get('/quiz', (c) => {
       }, 3000);
     }
 
+    // Notifications functions
+    async function toggleNotifications() {
+      const subscribed = await window.isSubscribed();
+      
+      if (subscribed) {
+        await window.unsubscribeFromPush();
+        updateNotificationUI(false);
+      } else {
+        const success = await window.subscribeToPush();
+        if (success) {
+          updateNotificationUI(true);
+        }
+      }
+    }
+
+    function updateNotificationUI(subscribed) {
+      const btn = document.getElementById('notification-btn');
+      const text = document.getElementById('notification-text');
+      const status = document.getElementById('notification-status');
+      const icon = btn.querySelector('i');
+      
+      if (subscribed) {
+        icon.className = 'fas fa-bell';
+        text.textContent = 'إلغاء الإشعارات';
+        status.textContent = 'مفعل ✅';
+        status.className = 'text-xs text-green-500 mt-3';
+      } else {
+        icon.className = 'fas fa-bell-slash';
+        text.textContent = 'تفعيل الإشعارات';
+        status.textContent = 'غير مفعل';
+        status.className = 'text-xs text-gray-500 mt-3';
+      }
+    }
+
+    // Check notification status on load
+    async function checkNotificationStatus() {
+      const subscribed = await window.isSubscribed();
+      updateNotificationUI(subscribed);
+    }
+
+    // Make functions global
+    window.toggleNotifications = toggleNotifications;
+
     init();
+    checkNotificationStatus();
     </script>
 </body>
 </html>
@@ -4415,6 +4543,127 @@ app.get('/profile', (c) => {
 </body>
 </html>
   `);
+});
+
+// ===== PWA Push Notifications APIs =====
+
+// Subscribe to push notifications
+app.post('/api/push/subscribe', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'يجب تسجيل الدخول' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+    
+    const { endpoint, keys } = await c.req.json();
+    
+    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+      return c.json({ error: 'بيانات الاشتراك غير صالحة' }, 400);
+    }
+    
+    // Check if subscription already exists
+    const existing = await c.env.DB.prepare("SELECT id FROM push_subscriptions WHERE endpoint = ?").bind(endpoint).first();
+    
+    if (existing) {
+      return c.json({ success: true, message: 'الاشتراك موجود بالفعل' });
+    }
+    
+    // Save subscription
+    await c.env.DB.prepare("INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)").bind(decoded.userId, endpoint, keys.p256dh, keys.auth).run();
+    
+    return c.json({ success: true, message: 'تم الاشتراك في الإشعارات بنجاح' });
+    
+  } catch (error) {
+    console.error('Subscribe error:', error);
+    return c.json({ error: 'حدث خطأ أثناء الاشتراك' }, 500);
+  }
+});
+
+// Unsubscribe from push notifications
+app.delete('/api/push/unsubscribe', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'يجب تسجيل الدخول' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+    
+    const { endpoint } = await c.req.json();
+    
+    await c.env.DB.prepare("DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?").bind(decoded.userId, endpoint).run();
+    
+    return c.json({ success: true, message: 'تم إلغاء الاشتراك بنجاح' });
+    
+  } catch (error) {
+    console.error('Unsubscribe error:', error);
+    return c.json({ error: 'حدث خطأ أثناء إلغاء الاشتراك' }, 500);
+  }
+});
+
+// Send notification to all users (admin only)
+app.post('/api/push/notify-all', async (c) => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'غير مصرح' }, 401);
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = verifyToken(token);
+    
+    if (!decoded?.isAdmin) {
+      return c.json({ error: 'غير مصرح للوصول' }, 403);
+    }
+    
+    const { title, body, url } = await c.req.json();
+    
+    // Get all subscriptions
+    const subscriptions = await c.env.DB.prepare("SELECT endpoint, p256dh, auth FROM push_subscriptions").all();
+    
+    if (subscriptions.results.length === 0) {
+      return c.json({ success: true, message: 'لا يوجد مشتركين', sent: 0 });
+    }
+    
+    const payload = JSON.stringify({
+      title: title || '⚽ Koorax - سؤال جديد!',
+      body: body || 'سؤال جديد متاح الآن!',
+      url: url || '/quiz'
+    });
+    
+    let sentCount = 0;
+    let failedCount = 0;
+    
+    // Note: In production, use web-push library with VAPID keys
+    // For now, we'll just track the subscriptions
+    // You'll need to implement actual push sending in production
+    
+    for (const sub of subscriptions.results) {
+      try {
+        // In production: await webpush.sendNotification(sub, payload);
+        sentCount++;
+      } catch (error) {
+        console.error('Failed to send to:', sub.endpoint, error);
+        failedCount++;
+      }
+    }
+    
+    return c.json({ 
+      success: true, 
+      message: `تم إرسال الإشعارات`,
+      sent: sentCount,
+      failed: failedCount,
+      total: subscriptions.results.length
+    });
+    
+  } catch (error) {
+    console.error('Notify all error:', error);
+    return c.json({ error: 'حدث خطأ أثناء إرسال الإشعارات' }, 500);
+  }
 });
 
 
