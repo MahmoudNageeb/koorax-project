@@ -420,6 +420,70 @@ app.post('/api/quiz/answer', async (c) => {
   }
 });
 
+// Deduct points for leaving without answering
+app.post('/api/quiz/leave-penalty', async (c) => {
+  try {
+    // Try to get token from Authorization header or body
+    let token = null;
+    const authHeader = c.req.header('Authorization');
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    } else {
+      // For sendBeacon requests, token might be in body
+      const body = await c.req.json();
+      token = body.token;
+    }
+    
+    if (!token) {
+      return c.json({ error: 'يجب تسجيل الدخول' }, 401);
+    }
+    
+    const decoded = verifyToken(token);
+    
+    const body = await c.req.json();
+    const { questionId } = body;
+    
+    if (!questionId) {
+      return c.json({ error: 'بيانات غير صالحة' }, 400);
+    }
+    
+    // Check if already answered
+    const existing = await c.env.DB.prepare("SELECT id FROM user_answers WHERE user_id = ? AND question_id = ?").bind(decoded.userId, questionId).first();
+    
+    if (existing) {
+      // Already answered, no penalty
+      return c.json({ success: true, message: 'تم الإجابة مسبقاً' });
+    }
+    
+    // Get current points
+    const user = await c.env.DB.prepare("SELECT points FROM users WHERE id = ?").bind(decoded.userId).first();
+    
+    if (!user) {
+      return c.json({ error: 'المستخدم غير موجود' }, 404);
+    }
+    
+    // Deduct 5 points (minimum 0)
+    const newPoints = Math.max(0, user.points - 5);
+    
+    await c.env.DB.prepare("UPDATE users SET points = ? WHERE id = ?").bind(newPoints, decoded.userId).run();
+    
+    // Record the penalty in user_answers
+    await c.env.DB.prepare("INSERT INTO user_answers (user_id, question_id, answer, is_correct, points_earned) VALUES (?, ?, 'LEFT', 0, -5)").bind(decoded.userId, questionId).run();
+    
+    return c.json({
+      success: true,
+      message: 'تم خصم 5 نقاط للمغادرة',
+      pointsDeducted: 5,
+      newPoints: newPoints
+    });
+    
+  } catch (error) {
+    console.error('Leave penalty error:', error);
+    return c.json({ error: 'حدث خطأ أثناء تطبيق العقوبة' }, 500);
+  }
+});
+
 // Get leaderboard
 app.get('/api/quiz/leaderboard', async (c) => {
   try {
@@ -1576,19 +1640,10 @@ app.get('/', (c) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - مباريات كرة القدم</title>
     
-    <!-- PWA Meta Tags -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#22c55e">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Koorax">
-    <link rel="apple-touch-icon" href="/static/icon-192.png">
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <link rel="stylesheet" href="/static/koorax-enhanced.css">
-    <script src="/static/pwa.js"></script>
 </head>
 <body>
     ${getEnhancedHeader('home')}
@@ -3155,17 +3210,10 @@ app.get('/quiz', (c) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - فزورة كوراكس</title>
     
-    <!-- PWA Meta Tags -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#22c55e">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="/static/icon-192.png">
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
     <link rel="stylesheet" href="/static/koorax-enhanced.css">
-    <script src="/static/pwa.js"></script>
     <style>
     .btn-primary {
       padding: 14px 24px;
@@ -3387,6 +3435,15 @@ app.get('/quiz', (c) => {
             
             <div id="quiz-content">
               <div id="question-card">
+                <!-- Timer -->
+                <div class="mb-6 text-center">
+                  <div class="inline-flex items-center gap-3 px-6 py-3 rounded-xl glass-card">
+                    <i class="fas fa-clock text-2xl text-primary"></i>
+                    <span class="text-3xl font-black text-primary" id="quiz-timer">60</span>
+                    <span class="text-lg text-gray-400">ثانية</span>
+                  </div>
+                </div>
+                
                 <h3 class="text-xl font-bold mb-4" id="question-text">جاري تحميل السؤال...</h3>
                 <div id="options-container" class="grid gap-4"></div>
                 <div id="result-message" class="mt-6"></div>
@@ -3408,24 +3465,6 @@ app.get('/quiz', (c) => {
               <h2 class="text-2xl font-black gradient-text">لوحة المتصدرين</h2>
             </div>
             <div id="leaderboard-container" class="space-y-3"></div>
-          </div>
-        </div>
-
-        <!-- Push Notifications Section -->
-        <div class="glass-card p-6 rounded-2xl">
-          <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center gap-3">
-              <i class="fas fa-bell text-3xl gradient-text"></i>
-              <h2 class="text-2xl font-black gradient-text">الإشعارات</h2>
-            </div>
-          </div>
-          <div class="text-center py-6">
-            <p class="text-gray-400 mb-4">احصل على إشعار فوري عند إضافة سؤال جديد!</p>
-            <button onclick="toggleNotifications()" id="notification-btn" class="btn-primary">
-              <i class="fas fa-bell-slash"></i>
-              <span id="notification-text">تفعيل الإشعارات</span>
-            </button>
-            <p class="text-xs text-gray-500 mt-3" id="notification-status">غير مفعل</p>
           </div>
         </div>
 
@@ -3632,19 +3671,6 @@ app.get('/quiz', (c) => {
                 </button>
               </form>
             </div>
-            
-            <!-- Send Notification Section -->
-            <div class="mt-6 pt-6 border-t border-gray-700">
-              <h3 class="text-xl font-bold mb-4">إرسال إشعار لجميع المستخدمين</h3>
-              <div class="space-y-4">
-                <p class="text-gray-400 text-sm">سيتم إرسال إشعار فوري لجميع المستخدمين المشتركين في الإشعارات</p>
-                <button onclick="sendNotificationToAll()" class="btn-primary w-full">
-                  <i class="fas fa-paper-plane"></i>
-                  إرسال إشعار: سؤال جديد متاح!
-                </button>
-                <p class="text-xs text-gray-500 text-center" id="notification-send-status"></p>
-              </div>
-            </div>
           </div>
         </div>
         
@@ -3716,6 +3742,11 @@ app.get('/quiz', (c) => {
           });
           currentUser = response.data.user;
           showQuizSection();
+          
+          // Add page leave tracking for non-admin users
+          if (currentUser.is_admin !== 1) {
+            setupLeaveTracking();
+          }
         } catch (error) {
           localStorage.removeItem('koorax_token');
           showAuthSection();
@@ -3723,6 +3754,27 @@ app.get('/quiz', (c) => {
       } else {
         showAuthSection();
       }
+    }
+    
+    function setupLeaveTracking() {
+      // Track when user leaves the quiz page without answering
+      window.addEventListener('beforeunload', async (e) => {
+        // Only apply penalty if there's an active question and user hasn't answered
+        if (currentQuestionId && !hasAnswered && timeLeft > 0) {
+          const token = localStorage.getItem('koorax_token');
+          
+          // Use sendBeacon for reliable sending during page unload
+          const data = JSON.stringify({ 
+            questionId: currentQuestionId,
+            token: token
+          });
+          const blob = new Blob([data], { type: 'application/json' });
+          
+          navigator.sendBeacon('/api/quiz/leave-penalty', blob);
+          
+          // Note: Can't show toast or alert during beforeunload
+        }
+      });
     }
 
     function showAuthSection() {
@@ -3804,6 +3856,71 @@ app.get('/quiz', (c) => {
     }
 
     let currentQuestionId = null;
+    let quizTimer = null;
+    let timeLeft = 60; // 60 seconds
+    let hasAnswered = false;
+    
+    function startTimer() {
+      clearInterval(quizTimer);
+      timeLeft = 60;
+      hasAnswered = false;
+      updateTimerDisplay();
+      
+      quizTimer = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        
+        if (timeLeft <= 0) {
+          clearInterval(quizTimer);
+          handleTimeOut();
+        }
+      }, 1000);
+    }
+    
+    function updateTimerDisplay() {
+      const timerEl = document.getElementById('quiz-timer');
+      if (timerEl) {
+        timerEl.textContent = timeLeft;
+        
+        // Change color based on time left
+        if (timeLeft <= 10) {
+          timerEl.className = 'text-3xl font-black text-red-500';
+        } else if (timeLeft <= 30) {
+          timerEl.className = 'text-3xl font-black text-yellow-500';
+        } else {
+          timerEl.className = 'text-3xl font-black text-primary';
+        }
+      }
+    }
+    
+    async function handleTimeOut() {
+      if (hasAnswered) return;
+      
+      hasAnswered = true;
+      const token = localStorage.getItem('koorax_token');
+      
+      // Auto-submit wrong answer when time is up
+      try {
+        const response = await axios.post('/api/quiz/answer', 
+          { questionId: currentQuestionId, answer: 'timeout' }, 
+          { headers: { Authorization: \`Bearer \${token}\` }}
+        );
+        
+        const resultDiv = document.getElementById('result-message');
+        resultDiv.innerHTML = \`
+          <div class="p-6 bg-red-500 bg-opacity-20 border-2 border-red-500 rounded-xl text-center">
+            <i class="fas fa-hourglass-end text-4xl text-red-500 mb-3"></i>
+            <h3 class="text-2xl font-bold text-red-500 mb-2">انتهى الوقت!</h3>
+            <p>الإجابة الصحيحة: \${response.data.correctAnswer}</p>
+          </div>
+        \`;
+        
+        document.getElementById('options-container').innerHTML = '';
+        setTimeout(() => loadLeaderboard(), 2000);
+      } catch (error) {
+        console.error('Error handling timeout:', error);
+      }
+    }
     
     async function loadQuiz() {
       try {
@@ -3813,11 +3930,15 @@ app.get('/quiz', (c) => {
         });
         
         if (response.data.alreadyAnswered) {
+          clearInterval(quizTimer);
           document.getElementById('question-card').style.display = 'none';
           document.getElementById('answered-card').style.display = 'block';
         } else {
           // Save question ID for submission
           currentQuestionId = response.data.id;
+          
+          // Start timer
+          startTimer();
           
           // Get question text and options directly from response
           document.getElementById('question-text').textContent = response.data.question;
@@ -3836,6 +3957,11 @@ app.get('/quiz', (c) => {
     }
 
     async function submitAnswer(answer) {
+      if (hasAnswered) return;
+      
+      hasAnswered = true;
+      clearInterval(quizTimer);
+      
       try {
         const token = localStorage.getItem('koorax_token');
         const response = await axios.post('/api/quiz/answer', 
@@ -4145,41 +4271,6 @@ app.get('/quiz', (c) => {
       }
     }
 
-    async function sendNotificationToAll() {
-      const statusEl = document.getElementById('notification-send-status');
-      
-      if (!confirm('هل تريد إرسال إشعار لجميع المستخدمين المشتركين؟')) {
-        return;
-      }
-      
-      try {
-        statusEl.textContent = 'جاري الإرسال...';
-        statusEl.className = 'text-xs text-blue-500 text-center';
-        
-        const token = localStorage.getItem('koorax_token');
-        const response = await axios.post('/api/push/notify-all', {
-          title: '⚽ Koorax - سؤال جديد!',
-          body: 'سؤال جديد متاح الآن! اضغط لحل الفزورة',
-          url: '/quiz'
-        }, {
-          headers: { Authorization: \`Bearer \${token}\` }
-        });
-        
-        if (response.data.success) {
-          showToast(\`تم إرسال \${response.data.sent} إشعار بنجاح!\`, 'success');
-          statusEl.textContent = \`آخر إرسال: \${response.data.sent} مستخدم\`;
-          statusEl.className = 'text-xs text-green-500 text-center';
-        } else {
-          throw new Error(response.data.error);
-        }
-      } catch (error) {
-        showToast('فشل إرسال الإشعارات', 'error');
-        statusEl.textContent = 'فشل الإرسال';
-        statusEl.className = 'text-xs text-red-500 text-center';
-        console.error('Send notification error:', error);
-      }
-    }
-
     function showMessage(elementId, message, type) {
       const el = document.getElementById(elementId);
       el.innerHTML = \`<p class="text-\${type === 'error' ? 'red' : 'green'}-500">\${message}</p>\`;
@@ -4221,51 +4312,7 @@ app.get('/quiz', (c) => {
       }, 3000);
     }
 
-    // Notifications functions
-    async function toggleNotifications() {
-      const subscribed = await window.isSubscribed();
-      
-      if (subscribed) {
-        await window.unsubscribeFromPush();
-        updateNotificationUI(false);
-      } else {
-        const success = await window.subscribeToPush();
-        if (success) {
-          updateNotificationUI(true);
-        }
-      }
-    }
-
-    function updateNotificationUI(subscribed) {
-      const btn = document.getElementById('notification-btn');
-      const text = document.getElementById('notification-text');
-      const status = document.getElementById('notification-status');
-      const icon = btn.querySelector('i');
-      
-      if (subscribed) {
-        icon.className = 'fas fa-bell';
-        text.textContent = 'إلغاء الإشعارات';
-        status.textContent = 'مفعل ✅';
-        status.className = 'text-xs text-green-500 mt-3';
-      } else {
-        icon.className = 'fas fa-bell-slash';
-        text.textContent = 'تفعيل الإشعارات';
-        status.textContent = 'غير مفعل';
-        status.className = 'text-xs text-gray-500 mt-3';
-      }
-    }
-
-    // Check notification status on load
-    async function checkNotificationStatus() {
-      const subscribed = await window.isSubscribed();
-      updateNotificationUI(subscribed);
-    }
-
-    // Make functions global
-    window.toggleNotifications = toggleNotifications;
-
     init();
-    checkNotificationStatus();
     </script>
 </body>
 </html>
@@ -4544,127 +4591,5 @@ app.get('/profile', (c) => {
 </html>
   `);
 });
-
-// ===== PWA Push Notifications APIs =====
-
-// Subscribe to push notifications
-app.post('/api/push/subscribe', async (c) => {
-  try {
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return c.json({ error: 'يجب تسجيل الدخول' }, 401);
-    }
-    
-    const token = authHeader.substring(7);
-    const decoded = verifyToken(token);
-    
-    const { endpoint, keys } = await c.req.json();
-    
-    if (!endpoint || !keys?.p256dh || !keys?.auth) {
-      return c.json({ error: 'بيانات الاشتراك غير صالحة' }, 400);
-    }
-    
-    // Check if subscription already exists
-    const existing = await c.env.DB.prepare("SELECT id FROM push_subscriptions WHERE endpoint = ?").bind(endpoint).first();
-    
-    if (existing) {
-      return c.json({ success: true, message: 'الاشتراك موجود بالفعل' });
-    }
-    
-    // Save subscription
-    await c.env.DB.prepare("INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)").bind(decoded.userId, endpoint, keys.p256dh, keys.auth).run();
-    
-    return c.json({ success: true, message: 'تم الاشتراك في الإشعارات بنجاح' });
-    
-  } catch (error) {
-    console.error('Subscribe error:', error);
-    return c.json({ error: 'حدث خطأ أثناء الاشتراك' }, 500);
-  }
-});
-
-// Unsubscribe from push notifications
-app.delete('/api/push/unsubscribe', async (c) => {
-  try {
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return c.json({ error: 'يجب تسجيل الدخول' }, 401);
-    }
-    
-    const token = authHeader.substring(7);
-    const decoded = verifyToken(token);
-    
-    const { endpoint } = await c.req.json();
-    
-    await c.env.DB.prepare("DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?").bind(decoded.userId, endpoint).run();
-    
-    return c.json({ success: true, message: 'تم إلغاء الاشتراك بنجاح' });
-    
-  } catch (error) {
-    console.error('Unsubscribe error:', error);
-    return c.json({ error: 'حدث خطأ أثناء إلغاء الاشتراك' }, 500);
-  }
-});
-
-// Send notification to all users (admin only)
-app.post('/api/push/notify-all', async (c) => {
-  try {
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return c.json({ error: 'غير مصرح' }, 401);
-    }
-    
-    const token = authHeader.substring(7);
-    const decoded = verifyToken(token);
-    
-    if (!decoded?.isAdmin) {
-      return c.json({ error: 'غير مصرح للوصول' }, 403);
-    }
-    
-    const { title, body, url } = await c.req.json();
-    
-    // Get all subscriptions
-    const subscriptions = await c.env.DB.prepare("SELECT endpoint, p256dh, auth FROM push_subscriptions").all();
-    
-    if (subscriptions.results.length === 0) {
-      return c.json({ success: true, message: 'لا يوجد مشتركين', sent: 0 });
-    }
-    
-    const payload = JSON.stringify({
-      title: title || '⚽ Koorax - سؤال جديد!',
-      body: body || 'سؤال جديد متاح الآن!',
-      url: url || '/quiz'
-    });
-    
-    let sentCount = 0;
-    let failedCount = 0;
-    
-    // Note: In production, use web-push library with VAPID keys
-    // For now, we'll just track the subscriptions
-    // You'll need to implement actual push sending in production
-    
-    for (const sub of subscriptions.results) {
-      try {
-        // In production: await webpush.sendNotification(sub, payload);
-        sentCount++;
-      } catch (error) {
-        console.error('Failed to send to:', sub.endpoint, error);
-        failedCount++;
-      }
-    }
-    
-    return c.json({ 
-      success: true, 
-      message: `تم إرسال الإشعارات`,
-      sent: sentCount,
-      failed: failedCount,
-      total: subscriptions.results.length
-    });
-    
-  } catch (error) {
-    console.error('Notify all error:', error);
-    return c.json({ error: 'حدث خطأ أثناء إرسال الإشعارات' }, 500);
-  }
-});
-
 
 export default app;
