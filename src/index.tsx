@@ -133,6 +133,92 @@ function verifyToken(token: string): { userId: number; email: string; isAdmin?: 
   }
 }
 
+// Helper: Generate SEO meta tags
+function getSEOTags(page: {
+  title: string;
+  description: string;
+  keywords: string;
+  url: string;
+  image?: string;
+  type?: string;
+}) {
+  const defaultImage = 'https://3000-i8f8s5h0v1yti847hjyjr-b9b802c4.sandbox.novita.ai/static/koorax-og-image.png';
+  const siteName = 'Koorax - كوراكس';
+  
+  return `
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="${page.title}">
+    <meta name="description" content="${page.description}">
+    <meta name="keywords" content="${page.keywords}">
+    <meta name="author" content="Koorax Team">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="Arabic">
+    <meta name="revisit-after" content="1 days">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="${page.type || 'website'}">
+    <meta property="og:url" content="${page.url}">
+    <meta property="og:title" content="${page.title}">
+    <meta property="og:description" content="${page.description}">
+    <meta property="og:image" content="${page.image || defaultImage}">
+    <meta property="og:site_name" content="${siteName}">
+    <meta property="og:locale" content="ar_EG">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="${page.url}">
+    <meta property="twitter:title" content="${page.title}">
+    <meta property="twitter:description" content="${page.description}">
+    <meta property="twitter:image" content="${page.image || defaultImage}">
+    
+    <!-- Additional Meta Tags -->
+    <meta name="theme-color" content="#22c55e">
+    <meta name="msapplication-TileColor" content="#22c55e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="canonical" href="${page.url}">
+  `;
+}
+
+// Helper: Generate JSON-LD Schema
+function getSchemaOrg(type: 'WebSite' | 'Quiz' | 'ProfilePage' | 'SportsEvent') {
+  const baseSchema = {
+    '@context': 'https://schema.org',
+    '@type': type,
+    name: 'Koorax - كوراكس',
+    url: 'https://3000-i8f8s5h0v1yti847hjyjr-b9b802c4.sandbox.novita.ai',
+    description: 'منصة فزورة كرة القدم اليومية - اختبر معلوماتك في كرة القدم واربح النقاط',
+    inLanguage: 'ar',
+  };
+  
+  if (type === 'WebSite') {
+    return JSON.stringify({
+      ...baseSchema,
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: 'https://3000-i8f8s5h0v1yti847hjyjr-b9b802c4.sandbox.novita.ai/search?q={search_term_string}',
+        'query-input': 'required name=search_term_string'
+      }
+    });
+  }
+  
+  if (type === 'Quiz') {
+    return JSON.stringify({
+      ...baseSchema,
+      '@type': 'Quiz',
+      about: {
+        '@type': 'Thing',
+        name: 'Football'
+      },
+      educationalLevel: 'Beginner to Expert',
+      timeRequired: 'PT1M'
+    });
+  }
+  
+  return JSON.stringify(baseSchema);
+}
+
+
 // Register
 app.post('/api/auth/register', async (c) => {
   try {
@@ -1638,7 +1724,19 @@ app.get('/', (c) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚽ Koorax - مباريات كرة القدم</title>
+    <title>⚽ Koorax - مباريات كرة القدم | أخبار ونتائج كرة القدم العالمية</title>
+    
+    ${getSEOTags({
+      title: 'Koorax - مباريات كرة القدم | أخبار ونتائج كرة القدم العالمية',
+      description: 'تابع أحدث مباريات كرة القدم، النتائج المباشرة، والأخبار الرياضية. منصة كوراكس توفر لك كل ما تحتاجه لمتابعة عالم كرة القدم',
+      keywords: 'كرة القدم, مباريات كرة القدم, نتائج المباريات, أخبار كرة القدم, كوراكس, Koorax, football, soccer, live scores',
+      url: 'https://3000-i8f8s5h0v1yti847hjyjr-b9b802c4.sandbox.novita.ai/',
+      type: 'website'
+    })}
+    
+    <script type="application/ld+json">
+    ${getSchemaOrg('WebSite')}
+    </script>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
@@ -1809,7 +1907,20 @@ app.get('/matches', (c) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚽ Koorax - المباريات</title>
+    <title>⚽ Koorax - المباريات | نتائج ومواعيد مباريات كرة القدم</title>
+    
+    ${getSEOTags({
+      title: 'Koorax - المباريات | نتائج ومواعيد مباريات كرة القدم',
+      description: 'تابع جميع مباريات كرة القدم الهامة، النتائج المباشرة، المواعيد، والبطولات الرئيسية. دوري أبطال أوروبا، الدوريات الأوروبية الخمس الكبرى وأكثر',
+      keywords: 'مباريات كرة القدم, نتائج المباريات, مواعيد المباريات, دوري أبطال أوروبا, الدوري الإنجليزي, الدوري الإسباني, matches, fixtures, live scores',
+      url: 'https://3000-i8f8s5h0v1yti847hjyjr-b9b802c4.sandbox.novita.ai/matches',
+      type: 'website'
+    })}
+    
+    <script type="application/ld+json">
+    ${getSchemaOrg('SportsEvent')}
+    </script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
@@ -3208,7 +3319,19 @@ app.get('/quiz', (c) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚽ Koorax - فزورة كوراكس</title>
+    <title>⚽ Koorax - فزورة كوراكس | اختبر معلوماتك في كرة القدم واربح النقاط</title>
+    
+    ${getSEOTags({
+      title: 'Koorax - فزورة كوراكس | اختبر معلوماتك في كرة القدم',
+      description: 'شارك في فزورة كرة القدم اليومية! اختبر معلوماتك، اربح النقاط، وتصدّر لوحة المتصدرين. سؤال جديد كل يوم مع مؤقت 60 ثانية',
+      keywords: 'فزورة كرة القدم, اختبار كرة القدم, مسابقة كرة القدم, أسئلة كرة القدم, كوراكس كويز, football quiz, soccer trivia',
+      url: 'https://3000-i8f8s5h0v1yti847hjyjr-b9b802c4.sandbox.novita.ai/quiz',
+      type: 'quiz'
+    })}
+    
+    <script type="application/ld+json">
+    ${getSchemaOrg('Quiz')}
+    </script>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
@@ -3906,17 +4029,23 @@ app.get('/quiz', (c) => {
           { headers: { Authorization: \`Bearer \${token}\` }}
         );
         
-        const resultDiv = document.getElementById('result-message');
-        resultDiv.innerHTML = \`
-          <div class="p-6 bg-red-500 bg-opacity-20 border-2 border-red-500 rounded-xl text-center">
-            <i class="fas fa-hourglass-end text-4xl text-red-500 mb-3"></i>
-            <h3 class="text-2xl font-bold text-red-500 mb-2">انتهى الوقت!</h3>
-            <p>الإجابة الصحيحة: \${response.data.correctAnswer}</p>
+        // Hide the question card and show "time up" message
+        document.getElementById('question-card').style.display = 'none';
+        document.getElementById('answered-card').style.display = 'block';
+        document.getElementById('answered-card').innerHTML = \`
+          <div class="text-center p-8">
+            <i class="fas fa-hourglass-end text-6xl text-red-500 mb-4 animate-bounce"></i>
+            <h3 class="text-3xl font-bold mb-4 text-red-500">⏰ انتهى الوقت!</h3>
+            <p class="text-xl text-gray-300 mb-4">للأسف، لم تتمكن من الإجابة في الوقت المحدد</p>
+            <div class="p-4 bg-green-500 bg-opacity-20 border-2 border-green-500 rounded-xl mt-4">
+              <p class="text-lg font-bold text-green-500 mb-2">الإجابة الصحيحة:</p>
+              <p class="text-2xl font-black text-white">\${response.data.correctAnswer}</p>
+            </div>
+            <p class="text-gray-400 mt-6">عد غداً لسؤال جديد 🌟</p>
           </div>
         \`;
         
-        document.getElementById('options-container').innerHTML = '';
-        setTimeout(() => loadLeaderboard(), 2000);
+        setTimeout(() => loadLeaderboard(), 3000);
       } catch (error) {
         console.error('Error handling timeout:', error);
       }
@@ -3969,27 +4098,36 @@ app.get('/quiz', (c) => {
           { headers: { Authorization: \`Bearer \${token}\` }}
         );
         
-        const resultDiv = document.getElementById('result-message');
+        // Hide question card and show result in answered-card
+        document.getElementById('question-card').style.display = 'none';
+        document.getElementById('answered-card').style.display = 'block';
+        
         if (response.data.correct) {
-          resultDiv.innerHTML = \`
-            <div class="p-6 bg-green-500 bg-opacity-20 border-2 border-green-500 rounded-xl text-center">
-              <i class="fas fa-check-circle text-4xl text-green-500 mb-3"></i>
-              <h3 class="text-2xl font-bold text-green-500 mb-2">إجابة صحيحة!</h3>
-              <p>+\${response.data.points} نقطة</p>
+          document.getElementById('answered-card').innerHTML = \`
+            <div class="text-center p-8">
+              <i class="fas fa-check-circle text-6xl text-green-500 mb-4 animate-bounce"></i>
+              <h3 class="text-3xl font-bold mb-4 text-green-500">🎉 إجابة صحيحة!</h3>
+              <div class="p-4 bg-green-500 bg-opacity-20 border-2 border-green-500 rounded-xl">
+                <p class="text-2xl font-black text-green-500">+\${response.data.points} نقطة</p>
+              </div>
+              <p class="text-gray-400 mt-6">عد غداً لسؤال جديد 🌟</p>
             </div>
           \`;
         } else {
-          resultDiv.innerHTML = \`
-            <div class="p-6 bg-red-500 bg-opacity-20 border-2 border-red-500 rounded-xl text-center">
-              <i class="fas fa-times-circle text-4xl text-red-500 mb-3"></i>
-              <h3 class="text-2xl font-bold text-red-500 mb-2">إجابة خاطئة</h3>
-              <p>الإجابة الصحيحة: \${response.data.correctAnswer}</p>
+          document.getElementById('answered-card').innerHTML = \`
+            <div class="text-center p-8">
+              <i class="fas fa-times-circle text-6xl text-red-500 mb-4 animate-bounce"></i>
+              <h3 class="text-3xl font-bold mb-4 text-red-500">❌ إجابة خاطئة</h3>
+              <div class="p-4 bg-green-500 bg-opacity-20 border-2 border-green-500 rounded-xl mt-4">
+                <p class="text-lg font-bold text-green-500 mb-2">الإجابة الصحيحة:</p>
+                <p class="text-2xl font-black text-white">\${response.data.correctAnswer}</p>
+              </div>
+              <p class="text-gray-400 mt-6">عد غداً لسؤال جديد 🌟</p>
             </div>
           \`;
         }
         
-        document.getElementById('options-container').innerHTML = '';
-        setTimeout(() => loadLeaderboard(), 2000);
+        setTimeout(() => loadLeaderboard(), 3000);
       } catch (error) {
         console.error('Error submitting answer:', error);
       }
@@ -4327,7 +4465,20 @@ app.get('/profile', (c) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚽ Koorax - الملف الشخصي</title>
+    <title>⚽ Koorax - الملف الشخصي | إحصائياتك ونقاطك</title>
+    
+    ${getSEOTags({
+      title: 'Koorax - الملف الشخصي | إحصائياتك ونقاطك',
+      description: 'شاهد ملفك الشخصي، إحصائياتك، نقاطك، وترتيبك في لوحة المتصدرين. تابع تقدمك في مسابقة فزورة كرة القدم',
+      keywords: 'ملف شخصي, إحصائيات, نقاط, ترتيب, لوحة متصدرين, كوراكس, profile, stats, leaderboard',
+      url: 'https://3000-i8f8s5h0v1yti847hjyjr-b9b802c4.sandbox.novita.ai/profile',
+      type: 'profile'
+    })}
+    
+    <script type="application/ld+json">
+    ${getSchemaOrg('ProfilePage')}
+    </script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
@@ -4590,6 +4741,68 @@ app.get('/profile', (c) => {
 </body>
 </html>
   `);
+});
+
+// ===== SEO Routes =====
+
+// Robots.txt
+app.get('/robots.txt', (c) => {
+  return c.text(`User-agent: *
+Allow: /
+Allow: /quiz
+Allow: /matches
+Disallow: /api/
+Disallow: /profile
+
+Sitemap: https://3000-i8f8s5h0v1yti847hjyjr-b9b802c4.sandbox.novita.ai/sitemap.xml
+`);
+});
+
+// Sitemap.xml
+app.get('/sitemap.xml', (c) => {
+  const baseUrl = 'https://3000-i8f8s5h0v1yti847hjyjr-b9b802c4.sandbox.novita.ai';
+  const currentDate = new Date().toISOString().split('T')[0];
+  
+  return c.text(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  
+  <url>
+    <loc>${baseUrl}/quiz</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>${baseUrl}/matches</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>${baseUrl}/profile</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  
+</urlset>`, {
+    headers: {
+      'Content-Type': 'application/xml'
+    }
+  });
 });
 
 export default app;
