@@ -381,19 +381,6 @@ app.get('/api/competitions', async (c) => {
   }
 });
 
-// Get matches
-app.get('/api/matches', async (c) => {
-  try {
-    const status = c.req.query('status');
-    const matches = await getMatches(c.env.FOOTBALL_API_TOKEN, status);
-    return c.json(matches);
-  } catch (error) {
-    console.error('Matches error:', error);
-    return c.json({ error: 'Failed to fetch matches' }, 500);
-  }
-});
-
-// Get match by ID
 // ===== QUIZ APIs =====
 
 // Get today's question
@@ -1794,6 +1781,24 @@ app.get('/', (c) => {
     
     <script src="/static/koorax-features.js"></script>
     <script>
+      // ===== User's Local Timezone Helpers =====
+      // These functions use the browser's local timezone automatically
+      
+      function getLocalTime() {
+        return new Date(); // Browser automatically uses user's timezone
+      }
+      
+      function convertUTCToLocal(utcDateString) {
+        // new Date() automatically converts UTC to local timezone
+        return new Date(utcDateString);
+      }
+      
+      function isSameDay(date1, date2) {
+        return date1.getFullYear() === date2.getFullYear() &&
+               date1.getMonth() === date2.getMonth() &&
+               date1.getDate() === date2.getDate();
+      }
+      
       function getStatusText(status) {
         const t = window.kooraxT;
         if (status === 'IN_PLAY' || status === 'PAUSED') return t('live');
@@ -1808,12 +1813,14 @@ app.get('/', (c) => {
           const matches = response.data.matches;
           console.log('✅ Loaded', matches.length, 'matches');
           
+          const localNow = getLocalTime();
+          console.log('🕒 Local time:', localNow.toLocaleString());
+          
           // Filter live matches
           const liveMatches = matches.filter(m => m.status === 'IN_PLAY' || m.status === 'PAUSED');
           const upcomingToday = matches.filter(m => {
-            const matchDate = new Date(m.utcDate);
-            const today = new Date();
-            return matchDate.toDateString() === today.toDateString() && m.status === 'SCHEDULED';
+            const matchLocalDate = convertUTCToLocal(m.utcDate);
+            return isSameDay(matchLocalDate, localNow) && m.status === 'SCHEDULED';
           }).slice(0, 6);
           
           console.log('📊 Live:', liveMatches.length, 'Upcoming today:', upcomingToday.length);
@@ -1850,9 +1857,12 @@ app.get('/', (c) => {
           ? \`<span class="status-finished">\${t('finished')}</span>\`
           : \`<span class="status-scheduled">\${t('scheduled')}</span>\`;
         
+        // Convert UTC time to local timezone for display
+        const matchLocalTime = convertUTCToLocal(match.utcDate);
+        
         const score = (match.status === 'FINISHED' || match.status === 'IN_PLAY' || match.status === 'PAUSED')
           ? \`<div class="score-display">\${match.score.fullTime.home || 0} - \${match.score.fullTime.away || 0}</div>\`
-          : \`<div class="text-lg text-secondary">\${new Date(match.utcDate).toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit'})}</div>\`;
+          : \`<div class="text-lg text-secondary">\${matchLocalTime.toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit'})}</div>\`;
         
         return \`
           <a href="/matches/\${match.id}" class="match-card block">
@@ -2049,6 +2059,21 @@ app.get('/matches', (c) => {
     
     <script src="/static/koorax-features.js"></script>
     <script>
+      // ===== User's Local Timezone Helpers =====
+      function getLocalTime() {
+        return new Date();
+      }
+      
+      function convertUTCToLocal(utcDateString) {
+        return new Date(utcDateString);
+      }
+      
+      function isSameDay(date1, date2) {
+        return date1.getFullYear() === date2.getFullYear() &&
+               date1.getMonth() === date2.getMonth() &&
+               date1.getDate() === date2.getDate();
+      }
+      
       let allMatches = [];
       let currentFilter = 'all';
       let currentDate = null;
@@ -2068,13 +2093,13 @@ app.get('/matches', (c) => {
 
       function generateDateButtons() {
         const container = document.getElementById('date-filter-container');
-        const today = new Date();
+        const localToday = getLocalTime();
         const dates = [];
         
-        // Generate 5 days (2 past + today + 2 future)
+        // Generate 5 days (2 past + today + 2 future) using local timezone
         for (let i = -2; i <= 2; i++) {
-          const date = new Date(today);
-          date.setDate(today.getDate() + i);
+          const date = new Date(localToday);
+          date.setDate(localToday.getDate() + i);
           dates.push(date);
         }
         
@@ -2085,7 +2110,7 @@ app.get('/matches', (c) => {
           const dateStr = date.toISOString().split('T')[0];
           const dayName = date.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { weekday: 'short' });
           const dayNumber = date.getDate();
-          const isToday = date.toDateString() === today.toDateString();
+          const isToday = isSameDay(date, localToday);
           
           return \`
             <button 
@@ -2099,8 +2124,8 @@ app.get('/matches', (c) => {
           \`;
         }).join('');
         
-        // Set today as default
-        currentDate = today.toISOString().split('T')[0];
+        // Set today as default (local timezone)
+        currentDate = localToday.toISOString().split('T')[0];
       }
 
       async function loadAllMatches() {
@@ -2155,8 +2180,9 @@ app.get('/matches', (c) => {
         // Filter by date first (if date is selected)
         if (currentDate) {
           filtered = filtered.filter(m => {
-            const matchDate = new Date(m.utcDate).toISOString().split('T')[0];
-            return matchDate === currentDate;
+            const matchLocalDate = convertUTCToLocal(m.utcDate);
+            const matchDateStr = matchLocalDate.toISOString().split('T')[0];
+            return matchDateStr === currentDate;
           });
         }
         
@@ -2226,9 +2252,12 @@ app.get('/matches', (c) => {
           ? \`<span class="status-finished">\${t('finished')}</span>\`
           : \`<span class="status-scheduled">\${t('scheduled')}</span>\`;
         
+        // Convert UTC time to local timezone for display
+        const matchLocalTime = convertUTCToLocal(match.utcDate);
+        
         const score = (match.status === 'FINISHED' || match.status === 'IN_PLAY' || match.status === 'PAUSED')
           ? \`<div class="score-display">\${match.score.fullTime.home || 0} - \${match.score.fullTime.away || 0}</div>\`
-          : \`<div class="text-lg text-secondary">\${new Date(match.utcDate).toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit'})}</div>\`;
+          : \`<div class="text-lg text-secondary">\${matchLocalTime.toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit'})}</div>\`;
         
         return \`
           <a href="/matches/\${match.id}" class="match-card block">
@@ -3255,9 +3284,10 @@ app.get('/teams/:id', (c) => {
                 \${matches.slice(0, 10).map(match => {
                   const isHome = match.homeTeam.id == teamId;
                   const opponent = isHome ? match.awayTeam : match.homeTeam;
+                  const matchLocalTime = convertUTCToLocal(match.utcDate);
                   const score = match.score.fullTime.home !== null 
                     ? \`\${match.score.fullTime.home} - \${match.score.fullTime.away}\`
-                    : new Date(match.utcDate).toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit'});
+                    : matchLocalTime.toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit'});
                   
                   const statusBadge = match.status === 'IN_PLAY' || match.status === 'PAUSED'
                     ? \`<span class="status-live">\${t('live')}</span>\`
