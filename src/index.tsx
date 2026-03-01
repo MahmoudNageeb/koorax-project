@@ -1355,7 +1355,7 @@ function getEnhancedHeader(currentPage: string = '') {
           <i class="fas fa-question-circle"></i>
           <span class="hidden md:inline">الفزورة</span>
         </a>
-        <a href="/profile" class="nav-link ${currentPage === 'profile' ? 'active' : ''}">
+        <a href="/profile" id="profile-link-desktop" class="nav-link ${currentPage === 'profile' ? 'active' : ''}" style="display: none;">
           <i class="fas fa-user"></i>
           <span class="hidden md:inline">الملف الشخصي</span>
         </a>
@@ -1417,7 +1417,7 @@ function getEnhancedHeader(currentPage: string = '') {
       <i class="fas fa-question-circle"></i>
       <span>الفزورة</span>
     </a>
-    <a href="/profile" class="mobile-nav-link ${currentPage === 'profile' ? 'active' : ''}">
+    <a href="/profile" id="profile-link-mobile" class="mobile-nav-link ${currentPage === 'profile' ? 'active' : ''}" style="display: none;">
       <i class="fas fa-user"></i>
       <span>الملف الشخصي</span>
     </a>
@@ -1488,6 +1488,17 @@ function getEnhancedHeader(currentPage: string = '') {
 </div>
 
 <script>
+// Check if user is logged in and show profile link
+(function() {
+  const token = localStorage.getItem('koorax_token');
+  if (token) {
+    const desktopLink = document.getElementById('profile-link-desktop');
+    const mobileLink = document.getElementById('profile-link-mobile');
+    if (desktopLink) desktopLink.style.display = 'flex';
+    if (mobileLink) mobileLink.style.display = 'flex';
+  }
+})();
+
 // Mobile Menu Functions
 function kooraxToggleMobileMenu() {
   const menu = document.getElementById('mobile-menu');
@@ -4635,7 +4646,7 @@ app.get('/profile', (c) => {
       try {
         const token = localStorage.getItem('koorax_token');
         if (!token) {
-          window.location.href = '/quiz';
+          window.location.href = '/';
           return;
         }
 
@@ -4666,9 +4677,11 @@ app.get('/profile', (c) => {
 
       } catch (error) {
         console.error('Load profile error:', error);
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          // Token invalid or expired, clear and redirect
           localStorage.removeItem('koorax_token');
-          window.location.href = '/quiz';
+          localStorage.removeItem('koorax_user');
+          window.location.href = '/';
         }
       }
     }
@@ -4746,12 +4759,12 @@ app.get('/profile', (c) => {
       }
     }
 
-    // Check authentication first
-    async function checkAuth() {
+    // Check authentication first (immediate redirect if not logged in)
+    function checkAuth() {
       const token = localStorage.getItem('koorax_token');
       if (!token) {
-        alert('يجب تسجيل الدخول أولاً');
-        window.location.href = '/quiz';
+        // Redirect immediately without showing any content
+        window.location.href = '/';
         return false;
       }
       return true;
@@ -4759,13 +4772,17 @@ app.get('/profile', (c) => {
 
     // Initialize
     async function init() {
-      const isAuth = await checkAuth();
-      if (isAuth) {
-        document.getElementById('profile-content').style.display = 'block';
-        await loadProfile();
+      // Check auth immediately (synchronous)
+      if (!checkAuth()) {
+        return; // Stop execution if not authenticated
       }
+      
+      // Only show content if authenticated
+      document.getElementById('profile-content').style.display = 'block';
+      await loadProfile();
     }
     
+    // Run immediately
     init();
     </script>
 </body>
