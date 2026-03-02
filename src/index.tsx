@@ -10,6 +10,8 @@ import {
   getTeamById,
   getTeamMatches,
   getMatchesByDateRange,
+  getPlayerById,
+  getCurrentMatchdayMatches,
   FootballApiEnv,
   COMPETITIONS_INFO,
   TRANSLATIONS
@@ -1051,6 +1053,28 @@ app.get('/api/teams/:id/matches', async (c) => {
     return c.json(data);
   } catch (error) {
     return c.json({ error: 'Failed to fetch team matches' }, 500);
+  }
+});
+
+// Get player details
+app.get('/api/players/:id', async (c) => {
+  try {
+    const playerId = parseInt(c.req.param('id'));
+    const data = await getPlayerById({ FOOTBALL_API_TOKEN: c.env.FOOTBALL_API_TOKEN }, playerId);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch player details' }, 500);
+  }
+});
+
+// Get current matchday matches for a competition
+app.get('/api/competitions/:id/current-matches', async (c) => {
+  try {
+    const competitionId = parseInt(c.req.param('id'));
+    const data = await getCurrentMatchdayMatches({ FOOTBALL_API_TOKEN: c.env.FOOTBALL_API_TOKEN }, competitionId);
+    return c.json(data);
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch current matchday matches' }, 500);
   }
 });
 
@@ -2982,7 +3006,7 @@ app.get('/competitions/:id', (c) => {
 
         <!-- Tabs -->
         <div class="glass-card p-2 rounded-2xl mb-6">
-          <div class="grid grid-cols-2 gap-2">
+          <div class="grid grid-cols-3 gap-2">
             <button onclick="showTab('standings')" class="tab-btn active" data-tab="standings">
               <i class="fas fa-list-ol mr-2"></i>
               <span data-translate="standings">الترتيب</span>
@@ -2990,6 +3014,10 @@ app.get('/competitions/:id', (c) => {
             <button onclick="showTab('scorers')" class="tab-btn" data-tab="scorers">
               <i class="fas fa-futbol mr-2"></i>
               <span data-translate="topScorers">الهدافون</span>
+            </button>
+            <button onclick="showTab('matchday')" class="tab-btn" data-tab="matchday">
+              <i class="fas fa-calendar-week mr-2"></i>
+              <span>مباريات الجولة</span>
             </button>
           </div>
         </div>
@@ -3000,6 +3028,10 @@ app.get('/competitions/:id', (c) => {
         </div>
         
         <div id="scorers-tab" class="tab-content">
+          <div class="skeleton h-96"></div>
+        </div>
+        
+        <div id="matchday-tab" class="tab-content">
           <div class="skeleton h-96"></div>
         </div>
     </div>
@@ -3026,8 +3058,10 @@ app.get('/competitions/:id', (c) => {
         
         if (tab === 'standings') {
           loadStandings();
-        } else {
+        } else if (tab === 'scorers') {
           loadScorers();
+        } else if (tab === 'matchday') {
+          loadMatchday();
         }
       }
       
@@ -3103,7 +3137,7 @@ app.get('/competitions/:id', (c) => {
                       </thead>
                       <tbody>
                         \${standing.table.map((team, idx) => \`
-                          <tr class="border-b border-white/5 hover:bg-white/5 transition">
+                          <tr class="border-b border-white/5 hover:bg-white/5 transition cursor-pointer" onclick="window.location.href='/teams/\${team.team.id}'">
                             <td class="p-3">
                               <div class="w-8 h-8 rounded-full \${idx < 4 ? 'bg-green-500/20 text-green-500' : idx >= standing.table.length - 3 ? 'bg-red-500/20 text-red-500' : 'bg-white/10'} flex items-center justify-center font-bold text-sm">
                                 \${team.position}
@@ -3112,7 +3146,7 @@ app.get('/competitions/:id', (c) => {
                             <td class="p-3">
                               <div class="flex items-center gap-3">
                                 <img src="\${team.team.crest}" class="w-8 h-8" onerror="this.style.display='none'">
-                                <span class="font-medium">\${team.team.name}</span>
+                                <span class="font-medium hover:text-primary transition">\${team.team.name}</span>
                               </div>
                             </td>
                             <td class="text-center p-3">\${team.playedGames}</td>
@@ -3174,14 +3208,14 @@ app.get('/competitions/:id', (c) => {
                   </thead>
                   <tbody>
                     \${scorers.map((scorer, idx) => \`
-                      <tr class="border-b border-white/5 hover:bg-white/5 transition">
+                      <tr class="border-b border-white/5 hover:bg-white/5 transition cursor-pointer" onclick="window.location.href='/players/\${scorer.player.id}'">
                         <td class="p-3">
                           <div class="w-8 h-8 rounded-full \${idx === 0 ? 'bg-yellow-500/20 text-yellow-500' : idx === 1 ? 'bg-gray-400/20 text-gray-400' : idx === 2 ? 'bg-orange-500/20 text-orange-500' : 'bg-white/10'} flex items-center justify-center font-bold text-sm">
                             \${idx + 1}
                           </div>
                         </td>
                         <td class="p-3">
-                          <p class="font-bold">\${scorer.player.name}</p>
+                          <p class="font-bold hover:text-primary transition">\${scorer.player.name}</p>
                           <p class="text-sm text-secondary">\${scorer.player.nationality || ''}</p>
                         </td>
                         <td class="p-3">
@@ -3207,6 +3241,95 @@ app.get('/competitions/:id', (c) => {
           const t = window.kooraxT;
           document.getElementById('scorers-tab').innerHTML = 
             \`<p class="text-center text-red-500 py-12" data-translate="error">\${t('error')}</p>\`;
+        }
+      }
+      
+      async function loadMatchday() {
+        try {
+          const response = await axios.get(\`/api/competitions/\${compId}/current-matches\`);
+          const matches = response.data.matches;
+          const t = window.kooraxT;
+          
+          const container = document.getElementById('matchday-tab');
+          
+          if (!matches || matches.length === 0) {
+            container.innerHTML = \`
+              <div class="glass-card p-12 text-center rounded-2xl">
+                <i class="fas fa-calendar-times text-6xl text-secondary mb-4"></i>
+                <p class="text-xl text-secondary">لا توجد مباريات في الجولة الحالية</p>
+              </div>
+            \`;
+            return;
+          }
+          
+          // Group matches by matchday
+          const matchesByMatchday = {};
+          matches.forEach(match => {
+            const matchday = match.matchday || match.stage || 'غير محدد';
+            if (!matchesByMatchday[matchday]) {
+              matchesByMatchday[matchday] = [];
+            }
+            matchesByMatchday[matchday].push(match);
+          });
+          
+          let html = '';
+          Object.entries(matchesByMatchday).forEach(([matchday, dayMatches]) => {
+            html += \`
+              <div class="glass-card p-6 rounded-2xl mb-6">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                  <i class="fas fa-calendar-week text-primary"></i>
+                  الجولة \${matchday}
+                </h3>
+                <div class="space-y-3">
+                  \${dayMatches.map(match => {
+                    const statusBadge = match.status === 'IN_PLAY' 
+                      ? '<span class="badge badge-live"><i class="fas fa-circle text-red-500 animate-pulse mr-1"></i>مباشر</span>'
+                      : match.status === 'FINISHED'
+                      ? '<span class="badge badge-finished">انتهت</span>'
+                      : '<span class="badge badge-scheduled">لم تبدأ</span>';
+                    
+                    const date = new Date(match.utcDate);
+                    const time = date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                    const dateStr = date.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' });
+                    
+                    return \`
+                      <a href="/matches/\${match.id}" class="block">
+                        <div class="match-card hover:scale-[1.02] transition-transform">
+                          <div class="flex items-center justify-between">
+                            <div class="flex-1 text-right">
+                              <div class="flex items-center justify-end gap-2">
+                                <span class="font-bold">\${match.homeTeam.name}</span>
+                                \${match.homeTeam.crest ? \`<img src="\${match.homeTeam.crest}" class="w-8 h-8">\` : ''}
+                              </div>
+                            </div>
+                            <div class="px-6 text-center min-w-[100px]">
+                              \${match.status === 'FINISHED' || match.status === 'IN_PLAY' 
+                                ? \`<div class="text-2xl font-black">\${match.score.fullTime.home || 0} - \${match.score.fullTime.away || 0}</div>\`
+                                : \`<div class="text-sm text-secondary">\${time}<br>\${dateStr}</div>\`
+                              }
+                              \${statusBadge}
+                            </div>
+                            <div class="flex-1 text-left">
+                              <div class="flex items-center gap-2">
+                                \${match.awayTeam.crest ? \`<img src="\${match.awayTeam.crest}" class="w-8 h-8">\` : ''}
+                                <span class="font-bold">\${match.awayTeam.name}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                    \`;
+                  }).join('')}
+                </div>
+              </div>
+            \`;
+          });
+          
+          container.innerHTML = html;
+        } catch (error) {
+          console.error('Error loading matchday:', error);
+          document.getElementById('matchday-tab').innerHTML = 
+            \`<p class="text-center text-red-500 py-12">حدث خطأ أثناء تحميل مباريات الجولة</p>\`;
         }
       }
       
@@ -3343,6 +3466,197 @@ app.get('/teams/:id', (c) => {
       window.addEventListener('language-changed', () => {
         loadTeamDetails();
       });
+    </script>
+</body>
+</html>
+  `);
+});
+
+// Player Details Page
+app.get('/players/:id', (c) => {
+  const playerId = c.req.param('id');
+  return c.html(`
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚽ Koorax - معلومات اللاعب</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="/static/koorax-enhanced.css">
+</head>
+<body>
+    ${getEnhancedHeader('competitions')}
+    
+    <div class="container mx-auto px-4 py-6">
+        <!-- Back Button -->
+        <button onclick="history.back()" class="glass-card px-4 py-2 rounded-lg mb-6 hover:bg-white/10 transition">
+          <i class="fas fa-arrow-right mr-2"></i>
+          رجوع
+        </button>
+
+        <!-- Player Header -->
+        <div id="player-header" class="glass-card p-6 rounded-2xl mb-6">
+          <div class="skeleton h-32"></div>
+        </div>
+
+        <!-- Player Stats -->
+        <div id="player-stats" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="skeleton h-24"></div>
+          <div class="skeleton h-24"></div>
+          <div class="skeleton h-24"></div>
+        </div>
+
+        <!-- Player Details -->
+        <div id="player-details" class="glass-card p-6 rounded-2xl">
+          <div class="skeleton h-64"></div>
+        </div>
+    </div>
+    
+    <script src="/static/koorax-features.js"></script>
+    <script>
+      const playerId = ${playerId};
+      
+      async function loadPlayerInfo() {
+        try {
+          const response = await axios.get(\`/api/players/\${playerId}\`);
+          const player = response.data;
+          
+          // Player Header
+          const nationality = player.nationality ? \`<img src="https://flagcdn.com/w40/\${getNationalityCode(player.nationality)}.png" class="w-8 h-5 inline-block mr-2" onerror="this.style.display='none'">\` : '';
+          
+          document.getElementById('player-header').innerHTML = \`
+            <div class="flex flex-col md:flex-row items-center gap-6">
+              <div class="w-32 h-32 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center">
+                <i class="fas fa-user text-6xl text-primary"></i>
+              </div>
+              <div class="flex-1 text-center md:text-right">
+                <h1 class="text-4xl font-black gradient-text mb-2">\${player.name}</h1>
+                <p class="text-xl text-secondary mb-2">
+                  \${nationality}
+                  \${player.nationality || 'غير محدد'}
+                </p>
+                <div class="flex flex-wrap gap-3 justify-center md:justify-start">
+                  <span class="badge badge-primary">
+                    <i class="fas fa-running mr-1"></i>
+                    \${player.position || 'غير محدد'}
+                  </span>
+                  \${player.dateOfBirth ? \`<span class="badge badge-secondary">
+                    <i class="fas fa-birthday-cake mr-1"></i>
+                    \${calculateAge(player.dateOfBirth)} سنة
+                  </span>\` : ''}
+                  \${player.currentTeam ? \`<span class="badge badge-team">
+                    <i class="fas fa-shield-alt mr-1"></i>
+                    \${player.currentTeam.name}
+                  </span>\` : ''}
+                </div>
+              </div>
+            </div>
+          \`;
+
+          // Player Stats
+          document.getElementById('player-stats').innerHTML = \`
+            <div class="glass-card p-4 rounded-xl text-center">
+              <i class="fas fa-calendar text-3xl text-primary mb-2"></i>
+              <p class="text-sm text-secondary">تاريخ الميلاد</p>
+              <p class="text-xl font-bold">\${player.dateOfBirth ? new Date(player.dateOfBirth).toLocaleDateString('ar-EG') : 'غير محدد'}</p>
+            </div>
+            <div class="glass-card p-4 rounded-xl text-center">
+              <i class="fas fa-flag text-3xl text-green-500 mb-2"></i>
+              <p class="text-sm text-secondary">الجنسية</p>
+              <p class="text-xl font-bold">\${player.nationality || 'غير محدد'}</p>
+            </div>
+            <div class="glass-card p-4 rounded-xl text-center">
+              <i class="fas fa-map-marker-alt text-3xl text-red-500 mb-2"></i>
+              <p class="text-sm text-secondary">الفريق الحالي</p>
+              <p class="text-xl font-bold">\${player.currentTeam?.name || 'غير محدد'}</p>
+            </div>
+          \`;
+
+          // Player Details
+          document.getElementById('player-details').innerHTML = \`
+            <h2 class="text-2xl font-bold mb-4">
+              <i class="fas fa-info-circle text-primary mr-2"></i>
+              التفاصيل الكاملة
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="p-4 rounded-lg bg-white/5">
+                <p class="text-secondary mb-1">الاسم الكامل</p>
+                <p class="font-bold">\${player.name}</p>
+              </div>
+              <div class="p-4 rounded-lg bg-white/5">
+                <p class="text-secondary mb-1">المركز</p>
+                <p class="font-bold">\${player.position || 'غير محدد'}</p>
+              </div>
+              <div class="p-4 rounded-lg bg-white/5">
+                <p class="text-secondary mb-1">الجنسية</p>
+                <p class="font-bold">\${player.nationality || 'غير محدد'}</p>
+              </div>
+              <div class="p-4 rounded-lg bg-white/5">
+                <p class="text-secondary mb-1">تاريخ الميلاد</p>
+                <p class="font-bold">\${player.dateOfBirth ? new Date(player.dateOfBirth).toLocaleDateString('ar-EG') : 'غير محدد'}</p>
+              </div>
+              \${player.currentTeam ? \`
+              <div class="p-4 rounded-lg bg-white/5 md:col-span-2">
+                <p class="text-secondary mb-2">الفريق الحالي</p>
+                <div class="flex items-center gap-3">
+                  \${player.currentTeam.crest ? \`<img src="\${player.currentTeam.crest}" class="w-12 h-12">\` : ''}
+                  <div>
+                    <p class="font-bold text-lg">\${player.currentTeam.name}</p>
+                    <p class="text-sm text-secondary">\${player.currentTeam.area?.name || ''}</p>
+                  </div>
+                </div>
+              </div>
+              \` : ''}
+              \${player.section ? \`
+              <div class="p-4 rounded-lg bg-white/5">
+                <p class="text-secondary mb-1">القسم</p>
+                <p class="font-bold">\${player.section}</p>
+              </div>
+              \` : ''}
+            </div>
+          \`;
+        } catch (error) {
+          console.error('Error loading player info:', error);
+          document.getElementById('player-header').innerHTML = 
+            \`<p class="text-center text-red-500 py-12">حدث خطأ أثناء تحميل معلومات اللاعب</p>\`;
+        }
+      }
+      
+      function getNationalityCode(nationality) {
+        const codes = {
+          'Argentina': 'ar', 'Brazil': 'br', 'England': 'gb-eng', 'Spain': 'es',
+          'France': 'fr', 'Germany': 'de', 'Italy': 'it', 'Portugal': 'pt',
+          'Netherlands': 'nl', 'Belgium': 'be', 'Egypt': 'eg', 'Morocco': 'ma',
+          'Saudi Arabia': 'sa', 'UAE': 'ae', 'Tunisia': 'tn', 'Algeria': 'dz',
+          'Uruguay': 'uy', 'Colombia': 'co', 'Mexico': 'mx', 'Croatia': 'hr',
+          'Poland': 'pl', 'Senegal': 'sn', 'Ghana': 'gh', 'Cameroon': 'cm',
+          'Nigeria': 'ng', 'South Korea': 'kr', 'Japan': 'jp', 'Australia': 'au',
+          'Serbia': 'rs', 'Switzerland': 'ch', 'Denmark': 'dk', 'Sweden': 'se',
+          'Norway': 'no', 'Austria': 'at', 'Czech Republic': 'cz', 'Turkey': 'tr',
+          'Ukraine': 'ua', 'Wales': 'gb-wls', 'Scotland': 'gb-sct', 'Ireland': 'ie',
+          'Chile': 'cl', 'Peru': 'pe', 'Ecuador': 'ec', 'Venezuela': 've',
+          'Paraguay': 'py', 'Bolivia': 'bo', 'Costa Rica': 'cr', 'Honduras': 'hn',
+          'Panama': 'pa', 'Jamaica': 'jm', 'Canada': 'ca', 'USA': 'us',
+          'South Africa': 'za', 'Ivory Coast': 'ci', 'Mali': 'ml', 'Burkina Faso': 'bf'
+        };
+        return codes[nationality] || nationality.toLowerCase().substring(0, 2);
+      }
+      
+      function calculateAge(birthDate) {
+        const today = new Date();
+        const birth = new Date(birthDate);
+        let age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+          age--;
+        }
+        return age;
+      }
+      
+      loadPlayerInfo();
     </script>
 </body>
 </html>

@@ -1,22 +1,32 @@
 // Football-Data.org API Configuration
 export const APP_NAME = 'Koorax';
 export const API_BASE_URL = 'https://api.football-data.org/v4';
-export const API_TOKEN = '538ffa00605b475596acc8ee0e54a7c5';
+export const API_TOKEN = 'haCKAx3jZ7b5u82U';
 
 // Competition IDs for Football-Data.org
 export const ALLOWED_COMPETITION_IDS = [
+  // European Leagues
   2021, // Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿
   2014, // La Liga 🇪🇸
   2019, // Serie A 🇮🇹
   2002, // Bundesliga 🇩🇪
   2015, // Ligue 1 🇫🇷
-  2001, // UEFA Champions League 🏆
-  2018, // European Championship (includes qualifiers)
-  2000, // FIFA World Cup
-  2152, // Copa Libertadores
-  2013, // Brasileirão Serie A
   2003, // Eredivisie 🇳🇱
-  2017  // Primeira Liga 🇵🇹
+  2017, // Primeira Liga 🇵🇹
+  
+  // Arab Leagues
+  2357, // Egyptian Premier League 🇪🇬
+  2420, // Saudi Pro League 🇸🇦
+  2421, // UAE Arabian Gulf League 🇦🇪
+  
+  // International Tournaments
+  2001, // UEFA Champions League 🏆
+  2018, // European Championship
+  2000, // FIFA World Cup
+  
+  // South American
+  2152, // Copa Libertadores
+  2013  // Brasileirão Serie A
 ];
 
 // Cups
@@ -30,19 +40,27 @@ export const CUP_COMPETITIONS = [
 ];
 
 export const COMPETITIONS_INFO: Record<number, { name: string; nameEn: string; icon: string; country: string; type: 'league' | 'cup' }> = {
+  // European Leagues
   2021: { name: 'الدوري الإنجليزي', nameEn: 'Premier League', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', country: 'England', type: 'league' },
   2014: { name: 'الدوري الإسباني', nameEn: 'La Liga', icon: '🇪🇸', country: 'Spain', type: 'league' },
   2019: { name: 'الدوري الإيطالي', nameEn: 'Serie A', icon: '🇮🇹', country: 'Italy', type: 'league' },
   2002: { name: 'الدوري الألماني', nameEn: 'Bundesliga', icon: '🇩🇪', country: 'Germany', type: 'league' },
   2015: { name: 'الدوري الفرنسي', nameEn: 'Ligue 1', icon: '🇫🇷', country: 'France', type: 'league' },
+  2003: { name: 'الدوري الهولندي', nameEn: 'Eredivisie', icon: '🇳🇱', country: 'Netherlands', type: 'league' },
+  2017: { name: 'الدوري البرتغالي', nameEn: 'Primeira Liga', icon: '🇵🇹', country: 'Portugal', type: 'league' },
+  
+  // Arab Leagues
+  2357: { name: 'الدوري المصري', nameEn: 'Egyptian Premier League', icon: '🇪🇬', country: 'Egypt', type: 'league' },
+  2420: { name: 'دوري روشن السعودي', nameEn: 'Saudi Pro League', icon: '🇸🇦', country: 'Saudi Arabia', type: 'league' },
+  2421: { name: 'دوري الخليج العربي', nameEn: 'UAE Arabian Gulf League', icon: '🇦🇪', country: 'UAE', type: 'league' },
+  
+  // International Tournaments
   2001: { name: 'دوري أبطال أوروبا', nameEn: 'Champions League', icon: '🏆', country: 'UEFA', type: 'cup' },
   2146: { name: 'كأس ملك إسبانيا', nameEn: 'Copa del Rey', icon: '🇪🇸', country: 'Spain', type: 'cup' },
   2054: { name: 'كأس الاتحاد الإنجليزي', nameEn: 'FA Cup', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', country: 'England', type: 'cup' },
   2055: { name: 'كأس ألمانيا', nameEn: 'DFB-Pokal', icon: '🇩🇪', country: 'Germany', type: 'cup' },
   2080: { name: 'كأس إيطاليا', nameEn: 'Coppa Italia', icon: '🇮🇹', country: 'Italy', type: 'cup' },
-  2044: { name: 'كأس فرنسا', nameEn: 'Coupe de France', icon: '🇫🇷', country: 'France', type: 'cup' },
-  2003: { name: 'الدوري الهولندي', nameEn: 'Eredivisie', icon: '🇳🇱', country: 'Netherlands', type: 'league' },
-  2017: { name: 'الدوري البرتغالي', nameEn: 'Primeira Liga', icon: '🇵🇹', country: 'Portugal', type: 'league' }
+  2044: { name: 'كأس فرنسا', nameEn: 'Coupe de France', icon: '🇫🇷', country: 'France', type: 'cup' }
 };
 
 export interface FootballApiEnv {
@@ -219,6 +237,30 @@ export async function getMatchesByDateRange(env: FootballApiEnv, dateFrom: strin
     return { matches: filtered };
   } catch (error) {
     console.error('Error fetching matches by date range:', error);
+    return { matches: [] };
+  }
+}
+
+// Get player details
+export async function getPlayerById(env: FootballApiEnv, playerId: number) {
+  try {
+    const token = env.FOOTBALL_API_TOKEN || API_TOKEN;
+    const data = await fetchFromAPI(`/persons/${playerId}`, token);
+    return data;
+  } catch (error) {
+    console.error('Error fetching player by ID:', error);
+    throw error;
+  }
+}
+
+// Get matches for current matchday of a competition
+export async function getCurrentMatchdayMatches(env: FootballApiEnv, competitionId: number) {
+  try {
+    const token = env.FOOTBALL_API_TOKEN || API_TOKEN;
+    const data = await fetchFromAPI(`/competitions/${competitionId}/matches?status=SCHEDULED,IN_PLAY,PAUSED`, token);
+    return data;
+  } catch (error) {
+    console.error('Error fetching current matchday matches:', error);
     return { matches: [] };
   }
 }
