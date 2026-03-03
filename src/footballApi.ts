@@ -1,7 +1,7 @@
 // Football-Data.org API Configuration
 export const APP_NAME = 'Koorax';
 export const API_BASE_URL = 'https://api.football-data.org/v4';
-export const API_TOKEN = 'haCKAx3jZ7b5u82U';
+export const API_TOKEN = '79312930c9804b81a10b12dcf14da7fb';
 
 // Competition IDs for Football-Data.org
 export const ALLOWED_COMPETITION_IDS = [
@@ -113,6 +113,11 @@ export async function getCompetitions(env: FootballApiEnv) {
     const token = env.FOOTBALL_API_TOKEN || API_TOKEN;
     const data = await fetchFromAPI('/competitions', token);
     
+    if (!data || !data.competitions) {
+      console.error('Invalid API response:', data);
+      return { competitions: [] };
+    }
+    
     const filtered = data.competitions.filter((comp: any) => 
       ALLOWED_COMPETITION_IDS.includes(comp.id)
     );
@@ -120,7 +125,7 @@ export async function getCompetitions(env: FootballApiEnv) {
     return { competitions: filtered };
   } catch (error) {
     console.error('Error fetching competitions:', error);
-    throw error;
+    return { competitions: [] };
   }
 }
 

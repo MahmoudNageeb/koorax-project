@@ -988,10 +988,11 @@ app.get('/api/admin/analytics', async (c) => {
 // Get competitions
 app.get('/api/competitions', async (c) => {
   try {
-    const data = await getCompetitions({ FOOTBALL_API_TOKEN: c.env.FOOTBALL_API_TOKEN });
+    const data = await getCompetitions(c.env);
     return c.json(data);
   } catch (error) {
-    return c.json({ error: 'Failed to fetch competitions' }, 500);
+    console.error('API /api/competitions error:', error);
+    return c.json({ error: 'Failed to fetch competitions', competitions: [] }, 500);
   }
 });
 
@@ -2920,6 +2921,43 @@ app.get('/matches/:id', (c) => {
                       </div>
                     </div>
                   \` : ''}
+                </div>
+              </div>
+            </div>
+          \`;
+        } else {
+          // Show info message when lineups are not available
+          lineupsHtml = \`
+            <div class="glass-card p-6 rounded-2xl mb-6 bg-blue-500/10 border border-blue-500/30">
+              <div class="flex items-start gap-4">
+                <div class="flex-shrink-0">
+                  <i class="fas fa-info-circle text-blue-400 text-3xl"></i>
+                </div>
+                <div class="flex-1">
+                  <h3 class="text-xl font-bold mb-2 text-blue-400">
+                    <i class="fas fa-users mr-2"></i>
+                    \${t('lineup') || 'التشكيل'}
+                  </h3>
+                  <p class="text-secondary leading-relaxed mb-3">
+                    📢 <strong>التشكيلة والأحداث التفصيلية</strong> (أهداف بالدقائق، بطاقات، تبديلات، الدقيقة الحالية للمباريات المباشرة) غير متوفرة في النسخة المجانية من API.
+                    <br><br>
+                    للحصول على هذه البيانات المتقدمة، يتطلب الأمر اشتراكاً <strong>Premium (Tier Plan)</strong> في Football-Data.org API.
+                  </p>
+                  <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-2">
+                    <div class="flex items-center gap-2 text-green-400 font-bold mb-2">
+                      <i class="fas fa-check-circle"></i>
+                      <span>البيانات المتوفرة حالياً:</span>
+                    </div>
+                    <ul class="text-sm text-secondary space-y-1 pr-6">
+                      <li>✅ النتيجة النهائية</li>
+                      <li>✅ نتيجة الشوط الأول</li>
+                      <li>✅ معلومات الفريقين والشعارات</li>
+                      <li>✅ معلومات البطولة</li>
+                      <li>✅ اسم الحكم وجنسيته</li>
+                      <li>✅ توقيت المباراة</li>
+                      <li>✅ حالة المباراة (مباشر/منتهية/لم تبدأ)</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
