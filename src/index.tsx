@@ -2644,24 +2644,32 @@ app.get('/matches/:id', (c) => {
 
         // Events Timeline
         let eventsHtml = '';
-        if (match.goals && match.goals.length > 0) {
+        
+        // Check if we have detailed event data
+        const hasGoals = match.goals && match.goals.length > 0;
+        const hasBookings = match.bookings && match.bookings.length > 0;
+        const hasSubstitutions = match.substitutions && match.substitutions.length > 0;
+        
+        if (hasGoals || hasBookings || hasSubstitutions) {
           const allEvents = [];
           
-          // Add goals
-          match.goals.forEach(goal => {
-            allEvents.push({
-              type: 'goal',
-              minute: goal.minute,
-              team: goal.team.name,
-              player: goal.scorer?.name || t('unknown'),
-              assist: goal.assist?.name,
-              icon: 'fa-futbol',
-              color: '#10b981'
+          // Add goals with minutes
+          if (hasGoals) {
+            match.goals.forEach(goal => {
+              allEvents.push({
+                type: 'goal',
+                minute: goal.minute,
+                team: goal.team.name,
+                player: goal.scorer?.name || t('unknown'),
+                assist: goal.assist?.name,
+                icon: 'fa-futbol',
+                color: '#10b981'
+              });
             });
-          });
+          }
           
-          // Add bookings (cards)
-          if (match.bookings && match.bookings.length > 0) {
+          // Add bookings (cards) with minutes
+          if (hasBookings) {
             match.bookings.forEach(booking => {
               allEvents.push({
                 type: booking.card === 'YELLOW_CARD' ? 'yellow-card' : 'red-card',
@@ -2675,8 +2683,8 @@ app.get('/matches/:id', (c) => {
             });
           }
           
-          // Add substitutions
-          if (match.substitutions && match.substitutions.length > 0) {
+          // Add substitutions with minutes
+          if (hasSubstitutions) {
             match.substitutions.forEach(sub => {
               allEvents.push({
                 type: 'substitution',
@@ -2775,6 +2783,21 @@ app.get('/matches/:id', (c) => {
               </div>
             \`;
           }
+        } else if (isFinished || isLive) {
+          // Show message when detailed data is not available
+          eventsHtml = \`
+            <div class="glass-card p-6 rounded-2xl mb-6">
+              <h3 class="text-xl font-bold mb-4">
+                <i class="fas fa-list-ul mr-2"></i>
+                \${t('events') || 'أحداث المباراة'}
+              </h3>
+              <div class="text-center py-8 text-secondary">
+                <i class="fas fa-info-circle text-4xl mb-3"></i>
+                <p>تفاصيل الأحداث (الأهداف بالدقائق، التشكيلة، الإحصاءات التفصيلية) تتطلب اشتراك Premium في API</p>
+                <p class="text-sm mt-2">النتيجة النهائية: \${match.score.fullTime.home || 0} - \${match.score.fullTime.away || 0}</p>
+              </div>
+            </div>
+          \`;
         }
 
         // Statistics
@@ -3095,6 +3118,9 @@ app.get('/competitions/:id', (c) => {
       const compId = ${compId};
       let currentTab = 'standings';
       
+      // Competitions info
+      window.COMPETITIONS_INFO = ${JSON.stringify(COMPETITIONS_INFO)};
+      
       function showTab(tab) {
         currentTab = tab;
         
@@ -3129,7 +3155,7 @@ app.get('/competitions/:id', (c) => {
           
           const t = window.kooraxT;
           const lang = window.kooraxGetLang();
-          const compInfo = ${JSON.stringify(COMPETITIONS_INFO)}[comp.id] || {};
+          const compInfo = window.COMPETITIONS_INFO[comp.id] || {};
           const compName = lang === 'ar' ? (compInfo.name || comp.name) : (compInfo.nameEn || comp.name);
           
           document.getElementById('comp-header').innerHTML = \`
