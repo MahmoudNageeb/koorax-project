@@ -1801,6 +1801,27 @@ app.get('/', (c) => {
           </div>
         </div>
         
+        <!-- Top Competitions Section -->
+        <div class="glass-card p-6 rounded-2xl mb-8">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-3xl font-black gradient-text">
+              <i class="fas fa-trophy mr-3"></i>
+              <span>أهم البطولات</span>
+            </h2>
+            <a href="/competitions" class="text-primary hover:underline">
+              <span data-translate="viewAll">عرض الكل</span>
+              <i class="fas fa-arrow-left mr-2"></i>
+            </a>
+          </div>
+          <div id="top-competitions" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div class="skeleton h-24"></div>
+            <div class="skeleton h-24"></div>
+            <div class="skeleton h-24"></div>
+            <div class="skeleton h-24"></div>
+            <div class="skeleton h-24"></div>
+          </div>
+        </div>
+        
         <!-- Quick Links - Only Matches and Competitions -->
         <div class="grid grid-cols-2 gap-4">
           <a href="/matches" class="glass-card p-8 text-center hover:scale-105 transition-transform">
@@ -1922,14 +1943,47 @@ app.get('/', (c) => {
         \`;
       }
       
+      // Load top competitions
+      async function loadTopCompetitions() {
+        try {
+          const response = await axios.get('/api/competitions');
+          const competitions = response.data.competitions;
+          
+          // Top competitions: Champions League, Premier League, La Liga, Bundesliga, Serie A, Egyptian League
+          const topCompIds = [2001, 2021, 2014, 2002, 2019, 2357];
+          const topComps = competitions.filter(c => topCompIds.includes(c.id));
+          
+          const compInfo = ${JSON.stringify(COMPETITIONS_INFO)};
+          const lang = window.kooraxGetLang();
+          
+          document.getElementById('top-competitions').innerHTML = topComps.map(comp => {
+            const info = compInfo[comp.id] || {};
+            const compName = lang === 'ar' ? (info.name || comp.name) : (info.nameEn || comp.name);
+            const icon = info.icon || '🏆';
+            
+            return \`
+              <a href="/competitions/\${comp.id}" class="glass-card p-4 rounded-xl hover:scale-105 transition-transform text-center">
+                <div class="text-4xl mb-2">\${icon}</div>
+                <h3 class="text-sm font-bold line-clamp-2">\${compName}</h3>
+              </a>
+            \`;
+          }).join('');
+        } catch (error) {
+          console.error('Error loading top competitions:', error);
+          document.getElementById('top-competitions').innerHTML = '<p class="text-center text-secondary col-span-5">حدث خطأ في تحميل البطولات</p>';
+        }
+      }
+      
       // Load matches when DOM is ready
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
           loadHomeMatches();
+          loadTopCompetitions();
           setInterval(loadHomeMatches, 60000);
         });
       } else {
         loadHomeMatches();
+        loadTopCompetitions();
         setInterval(loadHomeMatches, 60000);
       }
       
