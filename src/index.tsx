@@ -1748,6 +1748,7 @@ app.get('/', (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - مباريات كرة القدم | أخبار ونتائج كرة القدم العالمية</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     
     ${getSEOTags({
       title: 'Koorax - مباريات كرة القدم | أخبار ونتائج كرة القدم العالمية',
@@ -2008,6 +2009,7 @@ app.get('/matches', (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - المباريات | نتائج ومواعيد مباريات كرة القدم</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     
     ${getSEOTags({
       title: 'Koorax - المباريات | نتائج ومواعيد مباريات كرة القدم',
@@ -2396,6 +2398,7 @@ app.get('/matches/:id', (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - تفاصيل المباراة</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
@@ -2992,6 +2995,7 @@ app.get('/competitions', (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - البطولات</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
@@ -3105,6 +3109,7 @@ app.get('/competitions/:id', (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - تفاصيل البطولة</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
@@ -3478,6 +3483,7 @@ app.get('/teams/:id', (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - تفاصيل الفريق</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
@@ -3600,6 +3606,7 @@ app.get('/players/:id', (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - معلومات اللاعب</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
@@ -3793,6 +3800,7 @@ app.get('/quiz', (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - فزورة كوراكس | اختبر معلوماتك في كرة القدم واربح النقاط</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     
     ${getSEOTags({
       title: 'Koorax - فزورة كوراكس | اختبر معلوماتك في كرة القدم',
@@ -4939,6 +4947,7 @@ app.get('/profile', (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚽ Koorax - الملف الشخصي | إحصائياتك ونقاطك</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     
     ${getSEOTags({
       title: 'Koorax - الملف الشخصي | إحصائياتك ونقاطك',

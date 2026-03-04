@@ -3,6 +3,10 @@ export const APP_NAME = 'Koorax';
 export const API_BASE_URL = 'https://api.football-data.org/v4';
 export const API_TOKEN = '79312930c9804b81a10b12dcf14da7fb';
 
+// iSports API Configuration (for enhanced stats)
+export const ISPORTS_API_BASE = 'http://api.isportsapi.com';
+export const ISPORTS_API_KEY = 'q0MNhU9OQfckpY2R';
+
 // Competition IDs for Football-Data.org
 export const ALLOWED_COMPETITION_IDS = [
   // European Leagues
@@ -267,6 +271,48 @@ export async function getCurrentMatchdayMatches(env: FootballApiEnv, competition
   } catch (error) {
     console.error('Error fetching current matchday matches:', error);
     return { matches: [] };
+  }
+}
+
+// Get enhanced match statistics from iSports API (free tier)
+export async function getEnhancedMatchStats() {
+  try {
+    const url = `${ISPORTS_API_BASE}/sport/football/livescores?api_key=${ISPORTS_API_KEY}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error('iSports API error:', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data.code === 0 && data.data) {
+      // Create a map of matchId to stats for quick lookup
+      const statsMap = new Map();
+      data.data.forEach((match: any) => {
+        statsMap.set(match.matchId, {
+          corners: {
+            home: match.homeCorner || 0,
+            away: match.awayCorner || 0
+          },
+          cards: {
+            homeYellow: match.homeYellow || 0,
+            awayYellow: match.awayYellow || 0,
+            homeRed: match.homeRed || 0,
+            awayRed: match.awayRed || 0
+          },
+          status: match.status,
+          injuryTime: match.injuryTime || 0
+        });
+      });
+      return statsMap;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error fetching iSports stats:', error);
+    return null;
   }
 }
 
