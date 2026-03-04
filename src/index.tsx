@@ -2787,22 +2787,7 @@ app.get('/matches/:id', (c) => {
               </div>
             \`;
           }
-        } else if (isFinished || isLive) {
-          // Show message when detailed data is not available
-          eventsHtml = \`
-            <div class="glass-card p-6 rounded-2xl mb-6">
-              <h3 class="text-xl font-bold mb-4">
-                <i class="fas fa-list-ul mr-2"></i>
-                \${t('events') || 'أحداث المباراة'}
-              </h3>
-              <div class="text-center py-8 text-secondary">
-                <i class="fas fa-info-circle text-4xl mb-3"></i>
-                <p>تفاصيل الأحداث (الأهداف بالدقائق، التشكيلة، الإحصاءات التفصيلية) تتطلب اشتراك Premium في API</p>
-                <p class="text-sm mt-2">النتيجة النهائية: \${match.score.fullTime.home || 0} - \${match.score.fullTime.away || 0}</p>
-              </div>
-            </div>
-          \`;
-        }
+        } 
 
         // Statistics
         let statsHtml = '';
@@ -2924,43 +2909,6 @@ app.get('/matches/:id', (c) => {
                       </div>
                     </div>
                   \` : ''}
-                </div>
-              </div>
-            </div>
-          \`;
-        } else {
-          // Show info message when lineups are not available
-          lineupsHtml = \`
-            <div class="glass-card p-6 rounded-2xl mb-6 bg-blue-500/10 border border-blue-500/30">
-              <div class="flex items-start gap-4">
-                <div class="flex-shrink-0">
-                  <i class="fas fa-info-circle text-blue-400 text-3xl"></i>
-                </div>
-                <div class="flex-1">
-                  <h3 class="text-xl font-bold mb-2 text-blue-400">
-                    <i class="fas fa-users mr-2"></i>
-                    \${t('lineup') || 'التشكيل'}
-                  </h3>
-                  <p class="text-secondary leading-relaxed mb-3">
-                    📢 <strong>التشكيلة والأحداث التفصيلية</strong> (أهداف بالدقائق، بطاقات، تبديلات، الدقيقة الحالية للمباريات المباشرة) غير متوفرة في النسخة المجانية من API.
-                    <br><br>
-                    للحصول على هذه البيانات المتقدمة، يتطلب الأمر اشتراكاً <strong>Premium (Tier Plan)</strong> في Football-Data.org API.
-                  </p>
-                  <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-2">
-                    <div class="flex items-center gap-2 text-green-400 font-bold mb-2">
-                      <i class="fas fa-check-circle"></i>
-                      <span>البيانات المتوفرة حالياً:</span>
-                    </div>
-                    <ul class="text-sm text-secondary space-y-1 pr-6">
-                      <li>✅ النتيجة النهائية</li>
-                      <li>✅ نتيجة الشوط الأول</li>
-                      <li>✅ معلومات الفريقين والشعارات</li>
-                      <li>✅ معلومات البطولة</li>
-                      <li>✅ اسم الحكم وجنسيته</li>
-                      <li>✅ توقيت المباراة</li>
-                      <li>✅ حالة المباراة (مباشر/منتهية/لم تبدأ)</li>
-                    </ul>
-                  </div>
                 </div>
               </div>
             </div>
